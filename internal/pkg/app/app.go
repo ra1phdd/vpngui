@@ -52,6 +52,20 @@ func New(assets embed.FS) error {
 	return nil
 }
 
+func NewWindowRoutes(ctx context.Context) {
+	err := wails.Run(&options.App{
+		Title:            "VPN-GUI",
+		Width:            650,
+		Height:           550,
+		BackgroundColour: &options.RGBA{R: 30, G: 30, B: 80, A: 255},
+		Bind:             []interface{}{},
+	})
+
+	if err != nil {
+		println("Error:", err.Error())
+	}
+}
+
 // App struct
 type App struct {
 	ctx context.Context

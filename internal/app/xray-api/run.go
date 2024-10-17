@@ -21,7 +21,7 @@ func New() *XrayAPI {
 	return &XrayAPI{}
 }
 
-func (x *XrayAPI) Run() {
+func (x *XrayAPI) Run() bool {
 	cmd = exec.Command(embed.GetTempFileName(), "run", "-c", "config/xray.json")
 
 	cmd.Stderr = os.Stderr
@@ -29,7 +29,7 @@ func (x *XrayAPI) Run() {
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		fmt.Println("ошибка получения stdout", err)
-		return
+		return false
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -37,6 +37,7 @@ func (x *XrayAPI) Run() {
 
 	if err := cmd.Start(); err != nil {
 		fmt.Println("ошибка запуска xray-api", err)
+		return false
 	}
 
 	go func() {
@@ -67,19 +68,23 @@ func (x *XrayAPI) Run() {
 		}
 	}()
 
-	<-sigChan
+	go func() {
+		<-sigChan
+		proxy.Disable()
 
-	proxy.Disable()
+		if err := cmd.Process.Kill(); err != nil {
+			fmt.Println("ошибка завершения xray-api", err)
+		}
+	}()
 
-	if err := cmd.Process.Kill(); err != nil {
-		fmt.Println("ошибка завершения xray-api", err)
-	}
+	return true
 }
 
-func (x *XrayAPI) Kill() {
+func (x *XrayAPI) Kill() bool {
 	if cmd != nil && cmd.Process != nil {
 		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 			fmt.Println("ошибка при отправке сигнала SIGTERM", err)
+			return false
 		}
 	}
 	proxy.Disable()
@@ -87,6 +92,8 @@ func (x *XrayAPI) Kill() {
 	config.JSON.ActiveVPN = false
 	err := config.SaveConfig()
 	if err != nil {
-		return
+		return false
 	}
+
+	return true
 }
