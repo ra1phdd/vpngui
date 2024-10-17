@@ -1,0 +1,6 @@
+{
+  "active-vpn": false,
+  "disable-routes": true,
+  "enable-black-list": true,
+  "enable-white-list": false
+}

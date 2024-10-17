@@ -1,0 +1,63 @@
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 2080,
+      "protocol": "http",
+      "sniffing": {
+        "enabled": false
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 2081,
+      "protocol": "http",
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {
+          "certificates": [
+            {
+              "certificateFile": "config/cert.pem",
+              "keyFile": "config/key.pem"
+            }
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": false
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 2082,
+      "protocol": "socks",
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "domainMatcher": "hybrid",
+    "rules": [],
+    "balancers": null
+  },
+  "stats": {}
+}
