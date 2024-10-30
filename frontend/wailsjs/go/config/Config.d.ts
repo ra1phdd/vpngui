@@ -5,4 +5,4 @@ import {models} from '../models';
 
 export function GetJSON():Promise<config.StructJSON>;
 
-export function GetXray():Promise<models.Config>;
+export function GetXray():Promise<models.Xray>;

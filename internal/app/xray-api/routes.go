@@ -7,75 +7,139 @@ import (
 	"time"
 	"vpngui/config"
 	"vpngui/internal/app/models"
+	"vpngui/internal/app/repository"
 )
 
-func (x *XrayAPI) DisableRoutes() error {
-	config.Routes = *config.Xray.Routing
-	config.Xray.Routing = nil
-	config.JSON.DisableRoutes = true
-
-	err := x.SwapOutbounds(&config.Xray.Outbounds, "proxy", "direct")
-	if err != nil {
-		return err
-	}
-
-	err = config.SaveConfig()
-	if err != nil {
-		return err
-	}
-
-	x.Kill()
-	for config.JSON.ActiveVPN {
-		time.Sleep(100 * time.Millisecond)
-	}
-	go x.Run()
-	for !config.JSON.ActiveVPN {
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	return nil
+type RoutesXrayAPI struct {
+	run *RunXrayAPI
+	rr  *repository.RoutesRepository
 }
 
-func (x *XrayAPI) EnableRoutes() error {
+func NewRoutes(run *RunXrayAPI, rr *repository.RoutesRepository) *RoutesXrayAPI {
+	return &RoutesXrayAPI{
+		run: run,
+		rr:  rr,
+	}
+}
+
+func (x *RoutesXrayAPI) DisableRoutes() error {
+	getConfig, err := x.run.cr.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	config.Xray.Routing = nil
+
+	if err := x.run.cr.UpdateDisableRoutes(true); err != nil {
+		return err
+	}
+
+	if err := x.SwapOutbounds(&config.Xray.Outbounds, "proxy", "direct"); err != nil {
+		return err
+	}
+
+	if err := config.SaveConfig(); err != nil {
+		return err
+	}
+
+	return x.restartVPNIfActive(getConfig.ActiveVPN)
+}
+
+func (x *RoutesXrayAPI) EnableRoutes() error {
+	getConfig, err := x.run.cr.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if err := x.updateRoutingConfig(getConfig.ListMode); err != nil {
+		return err
+	}
+
+	if err := x.run.cr.UpdateDisableRoutes(false); err != nil {
+		return err
+	}
+
+	swapDirection := "direct"
+	if getConfig.ListMode == "blacklist" {
+		swapDirection = "proxy"
+	}
+	if err := x.SwapOutbounds(&config.Xray.Outbounds, swapDirection, "direct"); err != nil {
+		return err
+	}
+
+	if err := config.SaveConfig(); err != nil {
+		return err
+	}
+
+	return x.restartVPNIfActive(getConfig.ActiveVPN)
+}
+
+func (x *RoutesXrayAPI) EnableBlackList() error {
+	return x.toggleListMode("blacklist", "direct", "proxy")
+}
+
+func (x *RoutesXrayAPI) DisableBlackList() error {
+	return x.toggleListMode("whitelist", "proxy", "direct")
+}
+
+func (x *RoutesXrayAPI) toggleListMode(listMode, outbound1, outbound2 string) error {
+	getConfig, err := x.run.cr.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if err := x.updateRoutingConfig(listMode); err != nil {
+		return err
+	}
+
+	if err := x.run.cr.UpdateListMode(listMode); err != nil {
+		return err
+	}
+
+	if err := x.SwapOutbounds(&config.Xray.Outbounds, outbound1, outbound2); err != nil {
+		return err
+	}
+
+	if err := config.SaveConfig(); err != nil {
+		return err
+	}
+
+	return x.restartVPNIfActive(getConfig.ActiveVPN)
+}
+
+func (x *RoutesXrayAPI) updateRoutingConfig(listMode string) error {
 	if config.Xray.Routing == nil {
 		config.Xray.Routing = new(models.RoutingConfig)
 	}
 
-	*config.Xray.Routing = config.Routes
-
-	config.Routes = models.RoutingConfig{}
-	config.JSON.DisableRoutes = false
-
-	if config.JSON.EnableBlackList {
-		err := x.SwapOutbounds(&config.Xray.Outbounds, "direct", "proxy")
-		if err != nil {
-			return err
-		}
-	} else {
-		err := x.SwapOutbounds(&config.Xray.Outbounds, "proxy", "direct")
-		if err != nil {
-			return err
-		}
-	}
-
-	err := config.SaveConfig()
+	getRoutes, err := x.rr.GetRoutes(listMode)
 	if err != nil {
 		return err
 	}
+	*config.Xray.Routing = x.convertToRoutingConfig(getRoutes)
 
-	x.Kill()
-	for config.JSON.ActiveVPN {
-		time.Sleep(100 * time.Millisecond)
+	return nil
+}
+
+func (x *RoutesXrayAPI) restartVPNIfActive(active bool) error {
+	if !active {
+		return nil
 	}
-	go x.Run()
-	for !config.JSON.ActiveVPN {
-		time.Sleep(100 * time.Millisecond)
+
+	x.run.Kill()
+	if err := x.waitForVPNState(false); err != nil {
+		return err
+	}
+
+	go x.run.Run()
+	if err := x.waitForVPNState(false); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (x *XrayAPI) SwapOutbounds(outbounds *[]models.OutboundConfig, tag1, tag2 string) error {
+func (x *RoutesXrayAPI) SwapOutbounds(outbounds *[]models.OutboundConfig, tag1, tag2 string) error {
 	index1, index2 := -1, -1
 
 	for i, outbound := range *outbounds {
@@ -97,181 +161,125 @@ func (x *XrayAPI) SwapOutbounds(outbounds *[]models.OutboundConfig, tag1, tag2 s
 
 	return nil
 }
-func (x *XrayAPI) GetDomain(outboundTag string) string {
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			return strings.Join(config.Xray.Routing.Rules[i].Domain, "\n")
+
+func (x *RoutesXrayAPI) GetDomain(listMode string) string {
+	getRoutes, err := x.rr.GetRoutes(listMode)
+	if err != nil {
+		return ""
+	}
+
+	var domains []string
+	for _, rule := range getRoutes.Rules {
+		if rule.RuleType == "domain" {
+			domains = append(domains, rule.RuleValue)
 		}
 	}
 
-	return ""
+	return strings.Join(domains, "\n")
 }
 
-func (x *XrayAPI) GetIP(outboundTag string) string {
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			return strings.Join(config.Xray.Routing.Rules[i].IP, "\n")
+func (x *RoutesXrayAPI) GetIP(listMode string) string {
+	getRoutes, err := x.rr.GetRoutes(listMode)
+	if err != nil {
+		return ""
+	}
+
+	var ips []string
+	for _, rule := range getRoutes.Rules {
+		if rule.RuleType == "ip" {
+			ips = append(ips, rule.RuleValue)
 		}
 	}
 
-	return ""
+	return strings.Join(ips, "\n")
 }
 
-func (x *XrayAPI) GetPort(outboundTag string) string {
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			return config.Xray.Routing.Rules[i].Port
+func (x *RoutesXrayAPI) GetPort(listMode string) string {
+	getRoutes, err := x.rr.GetRoutes(listMode)
+	if err != nil {
+		return ""
+	}
+
+	var ports []string
+	for _, rule := range getRoutes.Rules {
+		if rule.RuleType == "port" {
+			ports = append(ports, rule.RuleValue)
 		}
 	}
 
-	return ""
+	return strings.Join(ports, ", ")
 }
 
-func (x *XrayAPI) AddDomain(outboundTag string, domain string) {
-	isValidTag(outboundTag)
-
+func (x *RoutesXrayAPI) AddDomain(listMode string, domain string) {
 	if !isValidDomain(domain) {
 		fmt.Println("Невалидный домен")
 		return
 	}
 
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			config.Xray.Routing.Rules[i].Domain = append(config.Xray.Routing.Rules[i].Domain, domain)
-			break
-		}
-	}
-
-	err := config.SaveConfig()
+	err := x.rr.AddRule(listMode, "domain", domain)
 	if err != nil {
 		return
 	}
 }
 
-func (x *XrayAPI) AddIP(outboundTag string, ip string) {
-	isValidTag(outboundTag)
-
+func (x *RoutesXrayAPI) AddIP(listMode string, ip string) {
 	if !isValidIP(ip) {
 		fmt.Println("Невалидный IP-адрес")
 		return
 	}
 
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			config.Xray.Routing.Rules[i].IP = append(config.Xray.Routing.Rules[i].IP, ip)
-			break
-		}
-	}
-
-	err := config.SaveConfig()
+	err := x.rr.AddRule(listMode, "ip", ip)
 	if err != nil {
 		return
 	}
 }
 
-func (x *XrayAPI) AddPort(outboundTag string, port string) {
-	isValidTag(outboundTag)
-
+func (x *RoutesXrayAPI) AddPort(listMode string, port string) {
 	if !isValidPort(port) {
-		fmt.Println("Невалидный порт")
+		fmt.Println("Невалидный IP-адрес")
 		return
 	}
 
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			if config.Xray.Routing.Rules[i].Port == port {
-				break
-			} else if config.Xray.Routing.Rules[i].Port == "" {
-				config.Xray.Routing.Rules[i].Port = port
-				break
-			}
-
-			config.Xray.Routing.Rules[i].Port += fmt.Sprintf(",%s", port)
-			break
-		}
-	}
-
-	err := config.SaveConfig()
+	err := x.rr.AddRule(listMode, "port", port)
 	if err != nil {
 		return
 	}
 }
 
-func (x *XrayAPI) DelDomain(outboundTag string, domain string) {
-	isLastItem(outboundTag)
+func (x *RoutesXrayAPI) DelDomain(listMode string, domain string) {
+	isLastItem(listMode)
 	if !isValidDomain(domain) {
 		fmt.Println("Невалидный домен")
 		return
 	}
 
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			for j, d := range config.Xray.Routing.Rules[i].Domain {
-				if d == domain {
-					config.Xray.Routing.Rules[i].Domain = append(config.Xray.Routing.Rules[i].Domain[:j], config.Xray.Routing.Rules[i].Domain[j+1:]...)
-					break
-				}
-			}
-			break
-		}
-	}
-
-	err := config.SaveConfig()
+	err := x.rr.DeleteRule(listMode, "domain", domain)
 	if err != nil {
 		return
 	}
 }
 
-func (x *XrayAPI) DelIP(outboundTag string, ip string) {
-	isLastItem(outboundTag)
+func (x *RoutesXrayAPI) DelIP(listMode string, ip string) {
+	isLastItem(listMode)
 	if !isValidIP(ip) {
 		fmt.Println("Невалидный IP-адрес")
 		return
 	}
 
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			for j, ipAddr := range config.Xray.Routing.Rules[i].IP {
-				if ipAddr == ip {
-					config.Xray.Routing.Rules[i].IP = append(config.Xray.Routing.Rules[i].IP[:j], config.Xray.Routing.Rules[i].IP[j+1:]...)
-					break
-				}
-			}
-			break
-		}
-	}
-
-	err := config.SaveConfig()
+	err := x.rr.DeleteRule(listMode, "ip", ip)
 	if err != nil {
 		return
 	}
 }
 
-func (x *XrayAPI) DelPort(outboundTag string, port string) {
-	isLastItem(outboundTag)
+func (x *RoutesXrayAPI) DelPort(listMode string, port string) {
+	isLastItem(listMode)
 	if !isValidPort(port) {
 		fmt.Println("Невалидный порт")
 		return
 	}
 
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			ports := config.Xray.Routing.Rules[i].Port
-			portList := strings.Split(ports, ",")
-
-			for j, p := range portList {
-				if p == port {
-					portList = append(portList[:j], portList[j+1:]...)
-					break
-				}
-			}
-
-			config.Xray.Routing.Rules[i].Port = strings.Join(portList, ",")
-			break
-		}
-	}
-
-	err := config.SaveConfig()
+	err := x.rr.DeleteRule(listMode, "port", port)
 	if err != nil {
 		return
 	}
@@ -295,24 +303,6 @@ func isValidPort(domain string) bool {
 	return re.MatchString(domain)
 }
 
-func isValidTag(outboundTag string) {
-	found := false
-	for i := range config.Xray.Routing.Rules {
-		if config.Xray.Routing.Rules[i].OutboundTag == outboundTag {
-			found = true
-		}
-	}
-
-	if !found {
-		newRule := models.RoutingRule{
-			Type:        "field",
-			OutboundTag: outboundTag,
-		}
-
-		config.Xray.Routing.Rules = append(config.Xray.Routing.Rules, newRule)
-	}
-}
-
 func isLastItem(outboundTag string) {
 	found := false
 	var item int
@@ -333,4 +323,52 @@ func isLastItem(outboundTag string) {
 	if err != nil {
 		return
 	}
+}
+
+func (x *RoutesXrayAPI) convertToRoutingConfig(listConfig models.ListConfig) models.RoutingConfig {
+	var routingConfig models.RoutingConfig
+
+	routingConfig.DomainStrategy = listConfig.DomainStrategy
+	routingConfig.DomainMatcher = listConfig.DomainMatcher
+
+	outboundTag := "proxy"
+	if listConfig.Type == "whitelist" {
+		outboundTag = "direct"
+	}
+
+	var domains, ips, ports []string
+	for _, rule := range listConfig.Rules {
+		switch rule.RuleType {
+		case "domain":
+			domains = append(domains, rule.RuleValue)
+		case "ip":
+			ips = append(ips, rule.RuleValue)
+		case "port":
+			ports = append(ports, rule.RuleValue)
+		}
+	}
+
+	var routingRule models.RoutingRule
+	routingRule.Type = "field"
+	routingRule.OutboundTag = outboundTag
+	routingRule.Domain = domains
+	routingRule.IP = ips
+	routingRule.Port = strings.Join(ports, ",")
+	routingConfig.Rules = append(routingConfig.Rules, routingRule)
+
+	return routingConfig
+}
+
+func (x *RoutesXrayAPI) waitForVPNState(expectedState bool) error {
+	for {
+		getConfig, err := x.run.cr.GetConfig()
+		if err != nil {
+			return err
+		}
+		if getConfig.ActiveVPN == expectedState {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil
 }

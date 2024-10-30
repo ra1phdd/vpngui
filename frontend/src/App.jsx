@@ -1,88 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
-import * as xray_api from "../wailsjs/go/xray_api/XrayAPI.js";
-import * as Config from "../wailsjs/go/config/Config.js";
+import React, {lazy, Suspense, useEffect, useState} from 'react';
+import Header from "./components/common/Header.jsx";
+import {Routes, Route, BrowserRouter} from "react-router-dom";
+import WindowControls from "./components/common/windowControls.jsx";
+import '@styles/main.css';
+
+const PageHome = lazy(() => import("./pages/Home/Home.jsx"));
+const PageRoutes = lazy(() => import("./pages/Routes/Routes.jsx"));
+const PageLog = lazy(() => import("./pages/Log/Log.jsx"));
+const PageAccounts = lazy(() => import("./pages/Accounts/Accounts.jsx"));
 
 function App() {
-    const [isVPNActive, setVPNActive] = useState(false);
-    const [status, setStatus] = useState("VPN выключен");
-
     useEffect(() => {
-        // Инициализация состояния VPN из конфигурации
-        const checkVPNStatus = async () => {
-            const config = await Config.GetJSON();
-            setVPNActive(config["active-vpn"]);
+        const handleSelectStart = (event) => {
+            event.preventDefault();
         };
 
-        checkVPNStatus();
+        document.addEventListener('selectstart', handleSelectStart);
+
+        return () => {
+            document.removeEventListener('selectstart', handleSelectStart);
+        };
     }, []);
 
-    useEffect(() => {
-        if (isVPNActive) {
-            setStatus("VPN включен");
-        } else {
-            setStatus("VPN выключен");
-        }
-    }, [isVPNActive]);
-
-    const toggleVPN = async () => {
-        if (isVPNActive) {
-            setStatus("VPN выключается...");
-            await xray_api.Kill();
-            const intervalId = setInterval(async () => {
-                const config = await Config.GetJSON();
-
-                if (!config["active-vpn"]) {
-                    setVPNActive(false);
-                    clearInterval(intervalId);
-                }
-            }, 100);
-        } else {
-            setStatus("VPN включается...");
-            await xray_api.Run();
-            const intervalId = setInterval(async () => {
-                const config = await Config.GetJSON();
-
-                if (config["active-vpn"]) {
-                    setVPNActive(true);
-                    clearInterval(intervalId);
-                }
-            }, 100);
-        }
-    };
-
-    const restartVPN = async () => {
-        setStatus("VPN перезапускается...");
-        await xray_api.Kill();
-        while (true) {
-            const config = await Config.GetJSON();
-            if (!config["active-vpn"]) {
-                break;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-
-        await xray_api.Run();
-        while (true) {
-            const config = await Config.GetJSON();
-            if (config["active-vpn"]) {
-                setStatus("VPN включен");
-                break;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-    };
-
     return (
-        <div style={{textAlign: 'center'}}>
-            <h1>{status}</h1>
-            <button onClick={toggleVPN}>
-                {isVPNActive ? "Подключено" : "Отключено"}
-            </button>
-            <button onClick={restartVPN}>
-                Перезапустить VPN
-            </button>
-        </div>
+        <BrowserRouter>
+            <WindowControls />
+            <div className="container">
+                <Header />
+                <main>
+                    <Suspense fallback={<div style={{textAlign: "center"}}>Загрузка...</div>}>
+                        <Routes>
+                            <Route path="/" element={<PageHome />} />
+                            <Route path="/routes" element={<PageRoutes />} />
+                            <Route path="/log" element={<PageLog />} />
+                            <Route path="/accounts" element={<PageAccounts />} />
+                        </Routes>
+                    </Suspense>
+                </main>
+            </div>
+        </BrowserRouter>
     );
 }
 

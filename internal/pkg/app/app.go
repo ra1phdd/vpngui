@@ -7,8 +7,12 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"vpngui/config"
+	"vpngui/internal/app/log"
+	"vpngui/internal/app/repository"
 	xray_api "vpngui/internal/app/xray-api"
+	"vpngui/pkg/db"
 	embedded "vpngui/pkg/embed"
 	"vpngui/pkg/logger"
 )
@@ -19,6 +23,9 @@ func New(assets embed.FS) error {
 		return err
 	}
 
+	capLog := log.New()
+	go capLog.CaptureStdout()
+
 	logger.Init("info")
 
 	err = embedded.Init()
@@ -26,22 +33,41 @@ func New(assets embed.FS) error {
 		return err
 	}
 
+	err = db.Init("db/vpngui.db")
+	if err != nil {
+		return err
+	}
+
 	app := NewApp()
 	cfg := &config.Config{}
 
+	configRepository := repository.NewConfig()
+	routesRepository := repository.NewRoutes()
+	runXrayApi := xray_api.NewRun(configRepository)
+	routesXrayApi := xray_api.NewRoutes(runXrayApi, routesRepository)
+
 	err = wails.Run(&options.App{
-		Title:  "VPN-GUI",
-		Width:  400,
-		Height: 550,
+		Title:             "VPN-GUI",
+		Width:             750,
+		Height:            500,
+		DisableResize:     true,
+		HideWindowOnClose: true,
+		Frameless:         false,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 30, G: 30, B: 80, A: 255},
-		OnStartup:        app.startup,
+		OnStartup: app.startup,
 		Bind: []interface{}{
 			app,
-			xray_api.New(),
+			configRepository,
+			routesRepository,
+			runXrayApi,
+			routesXrayApi,
 			cfg,
+			capLog,
+		},
+		Mac: &mac.Options{
+			TitleBar: mac.TitleBarHiddenInset(),
 		},
 	})
 
@@ -50,20 +76,6 @@ func New(assets embed.FS) error {
 	}
 
 	return nil
-}
-
-func NewWindowRoutes(ctx context.Context) {
-	err := wails.Run(&options.App{
-		Title:            "VPN-GUI",
-		Width:            650,
-		Height:           550,
-		BackgroundColour: &options.RGBA{R: 30, G: 30, B: 80, A: 255},
-		Bind:             []interface{}{},
-	})
-
-	if err != nil {
-		println("Error:", err.Error())
-	}
 }
 
 // App struct

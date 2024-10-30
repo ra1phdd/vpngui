@@ -1,0 +1,15 @@
+@import '../base/variables';
+@import '../components/toggleSwitch';
+
+.main-controls {
+  height: 95%;
+  align-content: center;
+  text-align: center;
+}
+.disable-routes {
+  text-align: center;
+  span {
+    color: white;
+    padding-left: 5px;
+  }
+}

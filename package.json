@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@coreui/coreui": "^5.1.2",
+    "@coreui/react": "^5.4.0",
+    "@wailsapp/runtime": "^1.1.1",
+    "path": "^0.12.7",
+    "react-transition-group": "^4.4.5",
+    "sass": "^1.80.4"
+  }
+}

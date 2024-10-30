@@ -44,6 +44,7 @@
         "vnext": [
           {
             "address": "5.252.178.253",
+            "country_code": "RO",
             "port": 443,
             "users": [
               {

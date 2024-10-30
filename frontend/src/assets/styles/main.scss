@@ -1,0 +1,10 @@
+@import 'base/reset';
+@import 'base/typography';
+@import 'base/mixins';
+@import 'base/utilites';
+
+@import 'layouts/header';
+
+main {
+  width: 75%;
+}
