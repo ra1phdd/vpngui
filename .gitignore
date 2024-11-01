@@ -7,3 +7,4 @@ pkg/embed/bin/
 pkg/embed/certs/
 certs/
 config/xray.json
+todo.txt
