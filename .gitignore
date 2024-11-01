@@ -1,6 +1,9 @@
-build/bin
+build/
 node_modules
+frontend/node_modules
 frontend/dist
 logs
-# Project exclude paths
-/pkg/embed/bin/
+pkg/embed/bin/
+pkg/embed/certs/
+certs/
+config/xray.json

@@ -17,8 +17,8 @@
         "tlsSettings": {
           "certificates": [
             {
-              "certificateFile": "config/cert.pem",
-              "keyFile": "config/key.pem"
+              "certificateFile": "certs/cert.pem",
+              "keyFile": "certs/key.pem"
             }
           ]
         }

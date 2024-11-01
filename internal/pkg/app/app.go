@@ -18,20 +18,20 @@ import (
 )
 
 func New(assets embed.FS) error {
-	err := config.LoadConfig()
+	err := embedded.Init()
 	if err != nil {
 		return err
 	}
 
-	capLog := log.New()
-	go capLog.CaptureStdout()
+	err = config.LoadConfig()
+	if err != nil {
+		return err
+	}
 
 	logger.Init("info")
 
-	err = embedded.Init()
-	if err != nil {
-		return err
-	}
+	capLog := log.New()
+	go capLog.CaptureStdout()
 
 	err = db.Init("db/vpngui.db")
 	if err != nil {

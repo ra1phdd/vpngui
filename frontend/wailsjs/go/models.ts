@@ -1,24 +1,3 @@
-export namespace config {
-	
-	export class StructJSON {
-	    "active-vpn": boolean;
-	    "disable-routes": boolean;
-	    "enable-black-list": boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new StructJSON(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this["active-vpn"] = source["active-vpn"];
-	        this["disable-routes"] = source["disable-routes"];
-	        this["enable-black-list"] = source["enable-black-list"];
-	    }
-	}
-
-}
-
 export namespace models {
 	
 	export class Config {
