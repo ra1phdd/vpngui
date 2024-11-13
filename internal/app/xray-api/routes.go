@@ -562,6 +562,15 @@ func (x *RoutesXrayAPI) isLastItem(listMode string) error {
 }
 
 func (x *RoutesXrayAPI) convertToRoutingConfig(listConfig models.ListConfig) models.RoutingConfig {
+	if len(listConfig.Rules) == 0 {
+		return models.RoutingConfig{
+			DomainStrategy: "AsIs",
+			DomainMatcher:  "hybrid",
+			Rules:          []models.RoutingRule{},
+			Balancers:      nil,
+		}
+	}
+
 	var routingConfig models.RoutingConfig
 
 	routingConfig.DomainStrategy = listConfig.DomainStrategy
@@ -667,7 +676,7 @@ func (x *RoutesXrayAPI) ActualizeConfig() {
 		},
 	}
 	config.Xray.Outbounds = append(config.Xray.Outbounds, outbound)
-	if getConfig.ListMode == "whitelist" || getConfig.DisableRoutes == true {
+	if getConfig.ListMode == "whitelist" || getConfig.DisableRoutes == true || len(getRoutes.Rules) == 0 {
 		err = x.SwapOutbounds(&config.Xray.Outbounds, "proxy", "direct")
 		if err != nil {
 			logger.Error("Error swapping outbound rules", zap.Error(err))
