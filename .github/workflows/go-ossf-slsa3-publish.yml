@@ -13,7 +13,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: ['VPN-GUI']
         include:
           - platform: linux/amd64
             os: ubuntu-latest
@@ -39,7 +38,7 @@ jobs:
         uses: dAppServer/wails-build-action@v2.2
         id: build
         with:
-          build-name: ${{ matrix.name }}
+          build-name: vpngui-${{ matrix.platform }}
           build-platform: ${{ matrix.platform }}
           package: true
           go-version: '1.23'
