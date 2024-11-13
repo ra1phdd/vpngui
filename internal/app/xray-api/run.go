@@ -2,107 +2,131 @@ package xray_api
 
 import (
 	"bufio"
-	"fmt"
+	"go.uber.org/zap"
 	"io"
 	"os"
 	"os/exec"
-	"os/signal"
 	"strings"
 	"syscall"
 	"vpngui/internal/app/proxy"
 	"vpngui/internal/app/repository"
 	"vpngui/pkg/embed"
+	"vpngui/pkg/logger"
 )
 
 var cmd *exec.Cmd
 
 type RunXrayAPI struct {
-	cr       *repository.ConfigRepository
-	sigChan  chan os.Signal
-	doneChan chan bool
+	cr      *repository.ConfigRepository
+	errorCh chan error
 }
 
 func NewRun(cr *repository.ConfigRepository) *RunXrayAPI {
 	return &RunXrayAPI{
-		cr:       cr,
-		sigChan:  make(chan os.Signal, 1),
-		doneChan: make(chan bool, 1),
+		cr:      cr,
+		errorCh: make(chan error, 1),
 	}
 }
 
-func (x *RunXrayAPI) Run() bool {
+func (x *RunXrayAPI) Run() error {
+	logger.Info("Starting xray-api")
 	cmd = exec.Command(embed.GetTempFileName(), "run", "-c", "config/xray.json")
 	cmd.Stderr = os.Stderr
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Println("ошибка получения stdout", err)
-		return false
+		logger.Error("Failed to get stdout pipe", zap.Error(err))
+		return err
 	}
-
-	signal.Notify(x.sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	if err := cmd.Start(); err != nil {
-		fmt.Println("ошибка запуска xray-api", err)
-		return false
+		logger.Error("Failed to start command", zap.Error(err))
+		return err
 	}
 
+	logger.Debug("xray-api started successfully")
 	go x.handleStdout(stdoutPipe)
-	go x.handleSignals()
 	go x.waitForExit()
 
-	return true
+	return nil
 }
 
-func (x *RunXrayAPI) Kill() bool {
+func (x *RunXrayAPI) Kill() error {
+	logger.Info("Stopping xray API")
 	if cmd != nil && cmd.Process != nil {
 		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-			fmt.Println("ошибка при отправке сигнала SIGTERM:", err)
-			return false
+			logger.Error("Failed to send SIGTERM to process", zap.Error(err))
+			return err
 		}
+		logger.Debug("Sent SIGTERM signal to process")
 	}
 
-	proxy.Disable()
+	if err := proxy.Disable(); err != nil {
+		logger.Error("Failed to update VPN state", zap.Error(err))
+		return err
+	}
 	if err := x.cr.UpdateActiveVPN(false); err != nil {
-		fmt.Println("ошибка обновления VPN состояния:", err)
-		return false
+		logger.Error("Failed to update active VPN state", zap.Error(err))
+		return err
+	}
+	logger.Debug("xray-api stopped successfully")
+
+	return nil
+}
+
+func (x *RunXrayAPI) KillOnClose() error {
+	logger.Info("Stopping xray API")
+	if cmd != nil && cmd.Process != nil {
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			logger.Error("Failed to send SIGTERM to process", zap.Error(err))
+			return err
+		}
+		logger.Debug("Sent SIGTERM signal to process")
 	}
 
-	return true
+	if err := proxy.Disable(); err != nil {
+		logger.Error("Failed to update VPN state", zap.Error(err))
+		return err
+	}
+	logger.Debug("xray-api stopped successfully")
+
+	return nil
 }
 
 func (x *RunXrayAPI) handleStdout(stdoutPipe io.ReadCloser) {
+	logger.Info("Handling stdout for xray API")
 	scanner := bufio.NewScanner(stdoutPipe)
 	defer stdoutPipe.Close()
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		fmt.Println(line)
+		logger.Debug("Received line from stdout", zap.String("line", line))
 		if strings.Contains(line, "started") {
-			proxy.Enable()
+			if err := proxy.Enable(); err != nil {
+				logger.Error("Failed to update VPN state", zap.Error(err))
+				return
+			}
+
 			if err := x.cr.UpdateActiveVPN(true); err != nil {
-				fmt.Println("ошибка обновления VPN состояния:", err)
+				logger.Error("Failed to update VPN state", zap.Error(err))
 				return
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		fmt.Println("ошибка чтения stdout:", err)
-	}
 }
 
 func (x *RunXrayAPI) waitForExit() {
-	if err := cmd.Wait(); err != nil {
-		fmt.Println("xray-api завершился с ошибкой:", err)
-	}
-	x.doneChan <- true
-}
+	if err := cmd.Wait(); err != nil && !strings.Contains(err.Error(), "exit status 255") {
+		logger.Error("xray API exited with an error", zap.Error(err))
 
-func (x *RunXrayAPI) handleSignals() {
-	select {
-	case <-x.sigChan:
-		x.Kill()
-	case <-x.doneChan:
-		signal.Stop(x.sigChan)
+		if err := proxy.Disable(); err != nil {
+			logger.Error("Failed to update VPN state", zap.Error(err))
+			return
+		}
+
+		if err := x.cr.UpdateActiveVPN(true); err != nil {
+			logger.Error("Failed to update VPN state", zap.Error(err))
+			return
+		}
 	}
 }

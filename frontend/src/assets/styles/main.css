@@ -251,6 +251,8 @@ header nav a.active, header nav a:hover {
 
 main {
   width: 75%;
+  display: flex;
+  flex-direction: column;
 }
 
 /*# sourceMappingURL=main.css.map */

@@ -3,6 +3,8 @@ import Header from "./components/common/Header.jsx";
 import {Routes, Route, BrowserRouter} from "react-router-dom";
 import WindowControls from "./components/common/windowControls.jsx";
 import '@styles/main.css';
+import {ToastContainer} from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 const PageHome = lazy(() => import("./pages/Home/Home.jsx"));
 const PageRoutes = lazy(() => import("./pages/Routes/Routes.jsx"));
@@ -38,6 +40,7 @@ function App() {
                     </Suspense>
                 </main>
             </div>
+            <ToastContainer />
         </BrowserRouter>
     );
 }

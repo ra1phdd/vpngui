@@ -3,12 +3,12 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"os"
 	"sync"
 	"vpngui/internal/app/models"
+	"vpngui/pkg/logger"
 )
-
-type Config struct{}
 
 var (
 	Xray     models.Xray
@@ -16,7 +16,18 @@ var (
 	FileXray = "config/xray.json"
 )
 
-func LoadConfig() error {
+type Config struct{}
+
+func New() *Config {
+	err := Load()
+	if err != nil {
+		logger.Error("Error loading config", zap.Error(err))
+	}
+
+	return &Config{}
+}
+
+func Load() error {
 	LockXray.Lock()
 	defer LockXray.Unlock()
 
@@ -32,23 +43,25 @@ func LoadConfig() error {
 	return nil
 }
 
-func SaveConfig() error {
+func Save() error {
 	LockXray.Lock()
 	defer LockXray.Unlock()
 
 	data, err := json.MarshalIndent(&Xray, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal config: %v", err)
+		logger.Error("Ошибка преобразования структуры в JSON-конфиг", zap.String("file", FileXray))
+		return err
 	}
 
 	err = os.WriteFile(FileXray, data, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to write config file: %v", err)
+		logger.Error("Ошибка записи JSON-конфига", zap.String("file", FileXray))
+		return err
 	}
 
 	return nil
 }
 
-func (c *Config) GetXray() models.Xray {
+func (c *Config) Get() models.Xray {
 	return Xray
 }

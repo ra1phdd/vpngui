@@ -1,10 +1,10 @@
 build/
-node_modules
-frontend/node_modules
-frontend/dist
-logs
+node_modules/
+frontend/node_modules/
+frontend/dist/
+logs/
 pkg/embed/bin/
-pkg/embed/certs/
 certs/
-config/xray.json
+config/
+db/
 todo.txt

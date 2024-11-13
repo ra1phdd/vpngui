@@ -47,17 +47,62 @@
 }
 
 .main-controls {
-  height: 95%;
   align-content: center;
   text-align: center;
+  margin-top: 65px;
+}
+
+.traffic {
+  color: white;
+  margin: 35px 0;
+}
+.traffic .traffic-proxy {
+  display: flex;
+  width: 275px;
+  margin: 0 auto;
+  background-color: #2b2b2b;
+  border-radius: 35px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  font-size: 14px;
+}
+.traffic .traffic-proxy .traffic-proxy_download, .traffic .traffic-proxy .traffic-proxy_upload {
+  position: relative;
+}
+.traffic .traffic-proxy .traffic-proxy_download p, .traffic .traffic-proxy .traffic-proxy_upload p {
+  text-align: center;
+  font-size: 15px;
+}
+.traffic .traffic-proxy .traffic-proxy_download .traffic-title, .traffic .traffic-proxy .traffic-proxy_upload .traffic-title {
+  margin-top: 8px;
+}
+.traffic .traffic-proxy .traffic-proxy_download .traffic-speed, .traffic .traffic-proxy .traffic-proxy_upload .traffic-speed {
+  width: 130px;
+  margin-bottom: 8px;
+}
+.traffic .traffic-proxy .traffic-proxy_download {
+  margin: 15px 0 15px auto;
+}
+.traffic .traffic-proxy .traffic-proxy_upload {
+  margin: 15px auto 15px 0;
+}
+.traffic .traffic-proxy .traffic-proxy_download::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1px;
+  width: 2px;
+  background-color: #373737;
 }
 
 .disable-routes {
   text-align: center;
-}
-.disable-routes span {
+  margin-top: auto;
+  margin-bottom: 15px;
   color: white;
-  padding-left: 5px;
+}
+.disable-routes input {
+  margin-right: 5px;
 }
 
 /*# sourceMappingURL=home.css.map */

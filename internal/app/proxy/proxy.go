@@ -2,94 +2,151 @@ package proxy
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"runtime"
+	"vpngui/pkg/logger"
 )
 
-func Enable() {
+func Enable() error {
+	logger.Info("Enabling proxy settings based on OS")
+
+	var err error
 	switch runtime.GOOS {
 	case "darwin":
-		setMacOSProxy("127.0.0.1", "2080", "2081", "2082")
+		err = setMacOSProxy("127.0.0.1", "2080")
 	case "linux":
-		setLinuxProxy("127.0.0.1", "2080", "2081", "2082")
+		err = setLinuxProxy("127.0.0.1", "2080")
 	case "windows":
-		setWindowsProxy("127.0.0.1", "2080", "2081")
+		err = setWindowsProxy("127.0.0.1", "2080")
 	}
+	if err != nil {
+		logger.Error("Failed to enable proxy settings", zap.String("os", runtime.GOOS), zap.Error(err))
+	} else {
+		logger.Info("Proxy settings enabled successfully", zap.String("os", runtime.GOOS))
+	}
+
+	return nil
 }
 
-func Disable() {
+func Disable() error {
+	logger.Info("Disabling proxy settings based on OS")
+
+	var err error
 	switch runtime.GOOS {
 	case "darwin":
-		clearMacOSProxy()
+		err = clearMacOSProxy()
 	case "linux":
-		clearLinuxProxy()
+		err = clearLinuxProxy()
 	case "windows":
-		clearWindowsProxy()
+		err = clearWindowsProxy()
 	}
-}
-
-func setMacOSProxy(host, httpPort, httpsPort, socksPort string) {
-	proxyCommands := [][]string{
-		//{"networksetup", "-setwebproxy", "Wi-Fi", host, httpPort},
-		//{"networksetup", "-setsecurewebproxy", "Wi-Fi", host, httpsPort},
-		{"networksetup", "-setsocksfirewallproxy", "Wi-Fi", host, socksPort},
+	if err != nil {
+		logger.Error("Failed to disable proxy settings", zap.String("os", runtime.GOOS), zap.Error(err))
+	} else {
+		logger.Info("Proxy settings disabled successfully", zap.String("os", runtime.GOOS))
 	}
 
-	runCommands(proxyCommands)
+	return nil
 }
 
-func clearMacOSProxy() {
+func setMacOSProxy(host, port string) error {
 	proxyCommands := [][]string{
-		//{"networksetup", "-setwebproxystate", "Wi-Fi", "off"},
-		//{"networksetup", "-setsecurewebproxystate", "Wi-Fi", "off"},
+		{"networksetup", "-setwebproxy", "Wi-Fi", host, port},
+		{"networksetup", "-setsocksfirewallproxy", "Wi-Fi", host, port},
+	}
+
+	err := runCommands(proxyCommands)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func clearMacOSProxy() error {
+	proxyCommands := [][]string{
+		{"networksetup", "-setwebproxystate", "Wi-Fi", "off"},
 		{"networksetup", "-setsocksfirewallproxystate", "Wi-Fi", "off"},
 	}
 
-	runCommands(proxyCommands)
-}
-
-func setLinuxProxy(host, httpPort, httpsPort, socksPort string) {
-	proxyCommands := [][]string{
-		//{"sh", "-c", fmt.Sprintf("export http_proxy='http://%s:%s'", host, httpPort)},
-		//{"sh", "-c", fmt.Sprintf("export https_proxy='https://%s:%s'", host, httpsPort)},
-		{"sh", "-c", fmt.Sprintf("export all_proxy='socks5://%s:%s'", host, socksPort)},
+	err := runCommands(proxyCommands)
+	if err != nil {
+		return err
 	}
 
-	runCommands(proxyCommands)
+	return nil
 }
 
-func clearLinuxProxy() {
+func setLinuxProxy(host, port string) error {
 	proxyCommands := [][]string{
-		//{"sh", "-c", "unset http_proxy"},
-		//{"sh", "-c", "unset https_proxy"},
+		{"sh", "-c", fmt.Sprintf("export http_proxy='https://%s:%s'", host, port)},
+		{"sh", "-c", fmt.Sprintf("export all_proxy='socks5://%s:%s'", host, port)},
+	}
+
+	err := runCommands(proxyCommands)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func clearLinuxProxy() error {
+	proxyCommands := [][]string{
+		{"sh", "-c", "unset http_proxy"},
 		{"sh", "-c", "unset all_proxy"},
 	}
 
-	runCommands(proxyCommands)
+	err := runCommands(proxyCommands)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func setWindowsProxy(host, httpPort, httpsPort string) {
-	cmd := exec.Command("netsh", "winhttp", "set", "proxy", fmt.Sprintf("http=%s:%s;https=%s:%s", host, httpPort, host, httpsPort))
-	runCommand(cmd)
+func setWindowsProxy(host, port string) error {
+	cmd := exec.Command("netsh", "winhttp", "set", "proxy", fmt.Sprintf("http=%s:%s;socks=%s:%s", host, port, host, port))
+	err := runCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func clearWindowsProxy() {
+func clearWindowsProxy() error {
 	cmd := exec.Command("netsh", "winhttp", "reset", "proxy")
-	runCommand(cmd)
+	err := runCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func runCommands(commands [][]string) {
+func runCommands(commands [][]string) error {
 	for _, args := range commands {
 		cmd := exec.Command(args[0], args[1:]...)
-		runCommand(cmd)
+		err := runCommand(cmd)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
-func runCommand(cmd *exec.Cmd) {
+func runCommand(cmd *exec.Cmd) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("Error executing command: %v\n", err)
+		logger.Error("Command execution failed", zap.String("cmd", cmd.String()), zap.Error(err))
+		return err
 	}
+
+	return nil
 }

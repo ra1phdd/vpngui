@@ -6,6 +6,10 @@ export function Kill() {
   return window['go']['xray_api']['RunXrayAPI']['Kill']();
 }
 
+export function KillOnClose() {
+  return window['go']['xray_api']['RunXrayAPI']['KillOnClose']();
+}
+
 export function Run() {
   return window['go']['xray_api']['RunXrayAPI']['Run']();
 }

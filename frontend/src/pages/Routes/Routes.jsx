@@ -4,6 +4,7 @@ import * as RoutesXrayAPI from "../../../wailsjs/go/xray_api/RoutesXrayAPI.js";
 
 function PageRoutes() {
     const [isChecked, setIsChecked] = useState(false);
+
     const [blacklistDomains, setBlacklistDomains] = useState('');
     const [blacklistIPs, setBlacklistIPs] = useState('');
     const [blacklistPorts, setBlacklistPorts] = useState('');

@@ -2,11 +2,11 @@ package models
 
 type Xray struct {
 	Log LogConfig `json:"log"`
-	//	API         APIConfig        `json:"api"`
+	API APIConfig `json:"api"`
 	//	DNS         DNSConfig        `json:"dns"`
 	Inbounds  []InboundConfig  `json:"inbounds"`
 	Outbounds []OutboundConfig `json:"outbounds"`
-	//	Policy    PolicyConfig     `json:"policy"`
+	Policy    PolicyConfig     `json:"policy"`
 	//	Reverse   ReverseConfig    `json:"reverse"`
 	Routing *RoutingConfig `json:"routing,omitempty"`
 	//	Transport   interface{}      `json:"transport"`

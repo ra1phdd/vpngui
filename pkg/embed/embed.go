@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"vpngui/config"
+	"vpngui/internal/app/config"
 )
 
 //go:embed certs/cert.pem
@@ -97,12 +97,10 @@ func Configs() {
 		return
 	}
 
-	if _, err := os.Stat(config.FileXray); os.IsNotExist(err) {
-		err = os.WriteFile(config.FileXray, embeddedXray, 0644)
-		if err != nil {
-			fmt.Printf("Ошибка записи файла: %v\n", err)
-			return
-		}
+	err := os.WriteFile(config.FileXray, embeddedXray, 0644)
+	if err != nil {
+		fmt.Printf("Ошибка записи файла: %v\n", err)
+		return
 	}
 }
 
