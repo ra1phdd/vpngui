@@ -46,3 +46,7 @@ jobs:
           package: true
           go-version: '1.23'
 
+      - name: Rename macOS artifact
+        if: ${{ matrix.name == 'vpngui' && matrix.platform == 'darwin/universal' }}
+        run: |
+          mv "Wails Build macOS vpngui.zip" "Wails Build macOS vpngui-darwin-universal.zip"
