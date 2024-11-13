@@ -24,10 +24,7 @@ jobs:
             platform: windows/arm64
             os: windows-latest
           - name: vpngui
-            platform: darwin/amd64
-            os: macos-latest
-          - name: vpngui
-            platform: darwin/arm64
+            platform: darwin/universal
             os: macos-latest
 
     runs-on: ${{ matrix.os }}
