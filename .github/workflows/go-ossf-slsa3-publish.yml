@@ -14,17 +14,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: linux/amd64
+          - name: vpngui-linux-amd64
+            platform: linux/amd64
             os: ubuntu-latest
-          - platform: linux/arm64
-            os: ubuntu-latest
-          - platform: windows/amd64
+          - name: vpngui-windows-amd64
+            platform: windows/amd64
             os: windows-latest
-          - platform: windows/arm64
+          - name: vpngui-windows-arm64
+            platform: windows/arm64
             os: windows-latest
-          - platform: darwin/amd64
-            os: macos-latest
-          - platform: darwin/arm64
+          - name: vpngui
+            platform: darwin/universal
             os: macos-latest
 
     runs-on: ${{ matrix.os }}
@@ -34,11 +34,14 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install dependencies
+        run: npm install
+
       - name: Build wails
         uses: dAppServer/wails-build-action@v2.2
         id: build
         with:
-          build-name: vpngui-${{ matrix.platform }}
+          build-name: ${{ matrix.name }}
           build-platform: ${{ matrix.platform }}
           package: true
           go-version: '1.23'
