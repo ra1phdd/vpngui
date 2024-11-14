@@ -657,7 +657,7 @@ func (x *RoutesXrayAPI) ActualizeConfig() {
 						{
 							"encryption": "none",
 							"flow":       "",
-							"id":         "67c2b5fe-852a-4451-b298-a551bb244314",
+							"id":         "eca25c92-e209-4e0c-acba-2364948d2b60",
 						},
 					},
 				},
