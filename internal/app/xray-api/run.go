@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"syscall"
 	"vpngui/internal/app/proxy"
@@ -30,7 +31,13 @@ func NewRun(cr *repository.ConfigRepository) *RunXrayAPI {
 
 func (x *RunXrayAPI) Run() error {
 	logger.Info("Starting xray-api")
-	cmd = exec.Command(embed.GetTempFileName(), "run", "-c", "config/xray.json")
+	cmdArgs := []string{"run", "-c", "config/xray.json"}
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/C", embed.GetTempFileName(), cmdArgs[0], cmdArgs[1], cmdArgs[2])
+	} else {
+		cmd = exec.Command(embed.GetTempFileName(), cmdArgs...)
+	}
+
 	cmd.Stderr = os.Stderr
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -54,11 +61,22 @@ func (x *RunXrayAPI) Run() error {
 func (x *RunXrayAPI) Kill() error {
 	logger.Info("Stopping xray API")
 	if cmd != nil && cmd.Process != nil {
-		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-			logger.Error("Failed to send SIGTERM to process", zap.Error(err))
-			return err
+		var err error
+		if runtime.GOOS == "windows" {
+			err = cmd.Process.Kill()
+			if err != nil {
+				logger.Error("Failed to kill process on Windows", zap.Error(err))
+				return err
+			}
+			logger.Debug("Process killed on Windows")
+		} else {
+			err = cmd.Process.Signal(syscall.SIGTERM)
+			if err != nil {
+				logger.Error("Failed to send SIGTERM to process", zap.Error(err))
+				return err
+			}
+			logger.Debug("Sent SIGTERM signal to process")
 		}
-		logger.Debug("Sent SIGTERM signal to process")
 	}
 
 	if err := proxy.Disable(); err != nil {

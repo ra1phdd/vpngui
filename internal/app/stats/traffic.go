@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"os/exec"
+	"runtime"
 	"vpngui/internal/app/models"
 	"vpngui/pkg/embed"
 	"vpngui/pkg/logger"
@@ -20,7 +21,13 @@ func NewTraffic() *Traffic {
 var CurrentTraffic, OldTraffic models.StatsTraffic
 
 func (t *Traffic) CaptureTraffic() {
-	cmd := exec.Command(embed.GetTempFileName(), "api", "statsquery")
+	var cmd *exec.Cmd
+	cmdArgs := []string{"api", "statsquery"}
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/C", embed.GetTempFileName(), cmdArgs[0], cmdArgs[1])
+	} else {
+		cmd = exec.Command(embed.GetTempFileName(), cmdArgs...)
+	}
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
