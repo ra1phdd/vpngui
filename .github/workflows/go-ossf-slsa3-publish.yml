@@ -46,6 +46,10 @@ jobs:
           package: true
           go-version: '1.23'
 
+      - name: List build output files
+        if: ${{ matrix.name == 'vpngui' && matrix.platform == 'darwin/universal' }}
+        run: ls -al
+
       - name: Rename macOS artifact
         if: ${{ matrix.name == 'vpngui' && matrix.platform == 'darwin/universal' }}
         run: |
