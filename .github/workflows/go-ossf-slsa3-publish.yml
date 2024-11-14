@@ -45,4 +45,3 @@ jobs:
           build-platform: ${{ matrix.platform }}
           package: true
           go-version: '1.23'
-
