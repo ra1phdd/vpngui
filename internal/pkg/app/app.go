@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"go.uber.org/zap"
+	"runtime"
 	"time"
 	"vpngui/internal/app/config"
 	"vpngui/internal/app/log"
@@ -109,7 +110,7 @@ func runWailsApp(assets embed.FS, app *App) error {
 		Height:            500,
 		DisableResize:     true,
 		HideWindowOnClose: true,
-		Frameless:         false,
+		Frameless:         runtime.GOOS == "windows",
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -135,7 +136,8 @@ func runWailsApp(assets embed.FS, app *App) error {
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
 		},
 		Windows: &windows.Options{
-			WebviewGpuIsDisabled: false,
+			IsZoomControlEnabled: false,
+			DisablePinchZoom:     true,
 		},
 	})
 	if err != nil {

@@ -1,11 +1,13 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"runtime"
+	"syscall"
 	"vpngui/pkg/logger"
 )
 
@@ -108,9 +110,20 @@ func clearLinuxProxy() error {
 }
 
 func setWindowsProxy(host, port string) error {
-	cmd := exec.Command("netsh", "winhttp", "set", "proxy", fmt.Sprintf("http=%s:%s;socks=%s:%s", host, port, host, port))
-	err := runCommand(cmd)
+	proxy := fmt.Sprintf("%s:%s", host, port)
+
+	proxyCommands := [][]string{
+		{"reg", "add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`, "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f"},
+		{"reg", "add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`, "/v", "ProxyServer", "/t", "REG_SZ", "/d", proxy, "/f"},
+	}
+
+	err := runCommands(proxyCommands)
 	if err != nil {
+		return err
+	}
+
+	if err := notifySettingsChange(); err != nil {
+		logger.Error("Failed to notify settings change", zap.Error(err))
 		return err
 	}
 
@@ -118,9 +131,44 @@ func setWindowsProxy(host, port string) error {
 }
 
 func clearWindowsProxy() error {
-	cmd := exec.Command("netsh", "winhttp", "reset", "proxy")
+	cmd := exec.Command("reg", "add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`, "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f")
 	err := runCommand(cmd)
 	if err != nil {
+		return err
+	}
+
+	if err := notifySettingsChange(); err != nil {
+		logger.Error("Failed to notify settings change", zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func notifySettingsChange() error {
+	dll, err := syscall.LoadDLL("wininet.dll")
+	if err != nil {
+		logger.Error("Failed to load wininet.dll", zap.Error(err))
+		return err
+	}
+	defer dll.Release()
+
+	proc, err := dll.FindProc("InternetSetOptionW")
+	if err != nil {
+		logger.Error("Failed to find InternetSetOptionW", zap.Error(err))
+		return err
+	}
+
+	const InternetOptionSettingsChanged = 39
+	const InternetOptionRefresh = 37
+
+	if _, _, err := proc.Call(0, InternetOptionSettingsChanged, 0, 0); err != nil && !errors.Is(err, syscall.Errno(0)) {
+		logger.Error("Failed to call InternetSetOptionW (SETTINGS_CHANGED)")
+		return err
+	}
+
+	if _, _, err := proc.Call(0, InternetOptionRefresh, 0, 0); err != nil && !errors.Is(err, syscall.Errno(0)) {
+		logger.Error("Failed to call InternetSetOptionW (REFRESH)")
 		return err
 	}
 

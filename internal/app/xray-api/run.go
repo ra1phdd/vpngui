@@ -60,10 +60,10 @@ func (x *RunXrayAPI) Kill() error {
 		if runtime.GOOS == "windows" {
 			err = cmd.Process.Kill()
 			if err != nil {
-				logger.Error("Failed to kill process on Windows", zap.Error(err))
+				logger.Error("Failed to kill process", zap.Error(err))
 				return err
 			}
-			logger.Debug("Process killed on Windows")
+			logger.Debug("Process killed")
 		} else {
 			err = cmd.Process.Signal(syscall.SIGTERM)
 			if err != nil {
@@ -90,11 +90,22 @@ func (x *RunXrayAPI) Kill() error {
 func (x *RunXrayAPI) KillOnClose() error {
 	logger.Info("Stopping xray API")
 	if cmd != nil && cmd.Process != nil {
-		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-			logger.Error("Failed to send SIGTERM to process", zap.Error(err))
-			return err
+		var err error
+		if runtime.GOOS == "windows" {
+			err = cmd.Process.Kill()
+			if err != nil {
+				logger.Error("Failed to kill process", zap.Error(err))
+				return err
+			}
+			logger.Debug("Process killed")
+		} else {
+			err = cmd.Process.Signal(syscall.SIGTERM)
+			if err != nil {
+				logger.Error("Failed to send SIGTERM to process", zap.Error(err))
+				return err
+			}
+			logger.Debug("Sent SIGTERM signal to process")
 		}
-		logger.Debug("Sent SIGTERM signal to process")
 	}
 
 	if err := proxy.Disable(); err != nil {
@@ -113,7 +124,7 @@ func (x *RunXrayAPI) handleStdout(stdoutPipe io.ReadCloser) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		logger.Debug("Received line from stdout", zap.String("line", line))
+		logger.Info("Received line from stdout", zap.String("line", line))
 		if strings.Contains(line, "started") {
 			if err := proxy.Enable(); err != nil {
 				logger.Error("Failed to update VPN state", zap.Error(err))
