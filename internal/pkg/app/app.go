@@ -8,6 +8,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"go.uber.org/zap"
 	"time"
 	"vpngui/internal/app/config"
@@ -126,11 +127,15 @@ func runWailsApp(assets embed.FS, app *App) error {
 			traffic,
 		},
 		Mac: &mac.Options{
-			TitleBar: mac.TitleBarHiddenInset(),
+			WebviewIsTransparent: true,
+			TitleBar:             mac.TitleBarHiddenInset(),
 		},
 		Linux: &linux.Options{
 			WindowIsTranslucent: false,
 			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
+		},
+		Windows: &windows.Options{
+			WebviewGpuIsDisabled: false,
 		},
 	})
 	if err != nil {

@@ -31,13 +31,8 @@ func NewRun(cr *repository.ConfigRepository) *RunXrayAPI {
 
 func (x *RunXrayAPI) Run() error {
 	logger.Info("Starting xray-api")
-	cmdArgs := []string{"run", "-c", "config/xray.json"}
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd", "/C", embed.GetTempFileName(), cmdArgs[0], cmdArgs[1], cmdArgs[2])
-	} else {
-		cmd = exec.Command(embed.GetTempFileName(), cmdArgs...)
-	}
 
+	cmd = exec.Command(embed.GetTempFileName(), "run", "-c", "config/xray.json")
 	cmd.Stderr = os.Stderr
 
 	stdoutPipe, err := cmd.StdoutPipe()

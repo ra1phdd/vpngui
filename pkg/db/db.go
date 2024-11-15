@@ -4,14 +4,14 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 var Conn *sqlx.DB
 
 func Init(DBPath string) error {
 	var err error
-	Conn, err = sqlx.Open("sqlite3", DBPath)
+	Conn, err = sqlx.Open("sqlite", DBPath)
 	if err != nil {
 		return err
 	}
