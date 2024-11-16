@@ -4,6 +4,7 @@
 package proxy
 
 import (
+	"errors"
 	"go.uber.org/zap"
 	"syscall"
 	"vpngui/pkg/logger"
