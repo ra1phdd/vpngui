@@ -42,6 +42,10 @@ func (a *App) shutdown(_ context.Context) {
 	}
 }
 
+func (a *App) IsGOOSWindows() bool {
+	return runtime.GOOS == "windows"
+}
+
 var (
 	settingsRepo  *repository.SettingsRepository
 	configRepo    *repository.ConfigRepository

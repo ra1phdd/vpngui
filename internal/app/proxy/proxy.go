@@ -1,13 +1,12 @@
 package proxy
 
 import (
-	"errors"
 	"fmt"
 	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"runtime"
-	"syscall"
+	"vpngui/internal/app/command"
 	"vpngui/pkg/logger"
 )
 
@@ -145,36 +144,6 @@ func clearWindowsProxy() error {
 	return nil
 }
 
-func notifySettingsChange() error {
-	dll, err := syscall.LoadDLL("wininet.dll")
-	if err != nil {
-		logger.Error("Failed to load wininet.dll", zap.Error(err))
-		return err
-	}
-	defer dll.Release()
-
-	proc, err := dll.FindProc("InternetSetOptionW")
-	if err != nil {
-		logger.Error("Failed to find InternetSetOptionW", zap.Error(err))
-		return err
-	}
-
-	const InternetOptionSettingsChanged = 39
-	const InternetOptionRefresh = 37
-
-	if _, _, err := proc.Call(0, InternetOptionSettingsChanged, 0, 0); err != nil && !errors.Is(err, syscall.Errno(0)) {
-		logger.Error("Failed to call InternetSetOptionW (SETTINGS_CHANGED)")
-		return err
-	}
-
-	if _, _, err := proc.Call(0, InternetOptionRefresh, 0, 0); err != nil && !errors.Is(err, syscall.Errno(0)) {
-		logger.Error("Failed to call InternetSetOptionW (REFRESH)")
-		return err
-	}
-
-	return nil
-}
-
 func runCommands(commands [][]string) error {
 	for _, args := range commands {
 		cmd := exec.Command(args[0], args[1:]...)
@@ -188,6 +157,7 @@ func runCommands(commands [][]string) error {
 }
 
 func runCommand(cmd *exec.Cmd) error {
+	cmd.SysProcAttr = command.GetSysProcAttr()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os/exec"
 	"runtime"
+	"vpngui/internal/app/command"
 	"vpngui/internal/app/models"
 	"vpngui/pkg/embed"
 	"vpngui/pkg/logger"
@@ -28,6 +29,7 @@ func (t *Traffic) CaptureTraffic() {
 	} else {
 		cmd = exec.Command(embed.GetTempFileName(), cmdArgs...)
 	}
+	cmd.SysProcAttr = command.GetSysProcAttr()
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {

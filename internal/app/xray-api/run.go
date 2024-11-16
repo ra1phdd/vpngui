@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"vpngui/internal/app/command"
 	"vpngui/internal/app/proxy"
 	"vpngui/internal/app/repository"
 	"vpngui/pkg/embed"
@@ -33,6 +34,7 @@ func (x *RunXrayAPI) Run() error {
 	logger.Info("Starting xray-api")
 
 	cmd = exec.Command(embed.GetTempFileName(), "run", "-c", "config/xray.json")
+	cmd.SysProcAttr = command.GetSysProcAttr()
 	cmd.Stderr = os.Stderr
 
 	stdoutPipe, err := cmd.StdoutPipe()
