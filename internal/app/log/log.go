@@ -6,7 +6,6 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"strings"
-	"sync"
 	"vpngui/pkg/logger"
 )
 
@@ -15,11 +14,6 @@ type Log struct{}
 func New() *Log {
 	return &Log{}
 }
-
-var (
-	OutLog []string
-	mu     sync.Mutex
-)
 
 func (a *Log) CaptureStdout() {
 	reader, writer, err := os.Pipe()
@@ -30,15 +24,17 @@ func (a *Log) CaptureStdout() {
 
 	oldStdout := os.Stdout
 	os.Stdout = writer
+	os.Stderr = writer
 
 	go func() {
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
 			line := scanner.Text()
-
-			mu.Lock()
-			OutLog = append(OutLog, line)
-			mu.Unlock()
+			if line != "" {
+				logger.MuLog.Lock()
+				logger.OutLog = append(logger.OutLog, line)
+				logger.MuLog.Unlock()
+			}
 
 			_, err = fmt.Fprintln(oldStdout, line)
 			if err != nil {
@@ -50,7 +46,7 @@ func (a *Log) CaptureStdout() {
 }
 
 func (a *Log) GetLogs() string {
-	mu.Lock()
-	defer mu.Unlock()
-	return strings.Join(OutLog, "\n")
+	logger.MuLog.Lock()
+	defer logger.MuLog.Unlock()
+	return strings.Join(logger.OutLog, "\n")
 }

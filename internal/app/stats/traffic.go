@@ -6,29 +6,32 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"os/exec"
-	"runtime"
+	"strings"
 	"vpngui/internal/app/command"
 	"vpngui/internal/app/models"
+	"vpngui/internal/app/proxy"
+	"vpngui/internal/app/repository"
 	"vpngui/pkg/embed"
 	"vpngui/pkg/logger"
 )
 
-type Traffic struct{}
-
-func NewTraffic() *Traffic {
-	return &Traffic{}
+type Traffic struct {
+	cr *repository.ConfigRepository
 }
 
-var CurrentTraffic, OldTraffic models.StatsTraffic
+func NewTraffic(cr *repository.ConfigRepository) *Traffic {
+	return &Traffic{
+		cr: cr,
+	}
+}
+
+var (
+	OldTraffic     models.StatsTraffic
+	CurrentTraffic models.StatsTraffic
+)
 
 func (t *Traffic) CaptureTraffic() {
-	var cmd *exec.Cmd
-	cmdArgs := []string{"api", "statsquery"}
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd", "/C", embed.GetTempFileName(), cmdArgs[0], cmdArgs[1])
-	} else {
-		cmd = exec.Command(embed.GetTempFileName(), cmdArgs...)
-	}
+	cmd := exec.Command(embed.GetTempFileName("xray-core"), "api", "statsquery")
 	cmd.SysProcAttr = command.GetSysProcAttr()
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -99,6 +102,20 @@ func (t *Traffic) ScannerStdout(stdoutPipe io.ReadCloser) string {
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		if strings.Contains(line, "resource temporarily unavailable") {
+			err := embed.Init()
+			if err != nil {
+				logger.Error("Failed to create xray file", zap.Error(err))
+
+				if err := proxy.Disable(); err != nil {
+					logger.Error("Failed to update VPN state", zap.Error(err))
+				}
+
+				if err := t.cr.UpdateActiveVPN(false); err != nil {
+					logger.Error("Failed to update VPN state", zap.Error(err))
+				}
+			}
+		}
 		jsonOutput += line
 	}
 

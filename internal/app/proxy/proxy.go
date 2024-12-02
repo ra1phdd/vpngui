@@ -114,6 +114,7 @@ func setWindowsProxy(host, port string) error {
 	proxyCommands := [][]string{
 		{"reg", "add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`, "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f"},
 		{"reg", "add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`, "/v", "ProxyServer", "/t", "REG_SZ", "/d", proxy, "/f"},
+		{"netsh", "winhttp", "set", "proxy", fmt.Sprintf("http=%s:%s", host, port)},
 	}
 
 	err := runCommands(proxyCommands)
@@ -130,8 +131,12 @@ func setWindowsProxy(host, port string) error {
 }
 
 func clearWindowsProxy() error {
-	cmd := exec.Command("reg", "add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`, "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f")
-	err := runCommand(cmd)
+	proxyCommands := [][]string{
+		{"reg", "add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`, "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f"},
+		{"netsh", "winhttp", "reset", "proxy"},
+	}
+
+	err := runCommands(proxyCommands)
 	if err != nil {
 		return err
 	}

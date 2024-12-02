@@ -564,7 +564,7 @@ func (x *RoutesXrayAPI) isLastItem(listMode string) error {
 func (x *RoutesXrayAPI) convertToRoutingConfig(listConfig models.ListConfig) models.RoutingConfig {
 	if len(listConfig.Rules) == 0 {
 		return models.RoutingConfig{
-			DomainStrategy: "AsIs",
+			DomainStrategy: "IPIfNotMatch",
 			DomainMatcher:  "hybrid",
 			Rules:          []models.RoutingRule{},
 			Balancers:      nil,

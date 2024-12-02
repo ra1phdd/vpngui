@@ -34,16 +34,6 @@
         padding: 10px;
         font-size: 14px;
       }
-      .routes-textarea {
-        width: 225px;
-        height: 35px;
-        background-color: $secondary-color;
-        border: 0;
-        border-radius: 15px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-        padding: 10px;
-        font-size: 14px;
-      }
       .routes-action {
         margin-top: 7.5px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
@@ -69,6 +59,13 @@
         a.routes-del {
           border-radius: 0 10px 10px 0;
         }
+      }
+    }
+  }
+  .routes-port {
+    section {
+      textarea {
+        height: 35px !important;
       }
     }
   }

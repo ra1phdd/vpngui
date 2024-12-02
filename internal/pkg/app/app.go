@@ -16,7 +16,7 @@ import (
 	"vpngui/internal/app/log"
 	"vpngui/internal/app/repository"
 	"vpngui/internal/app/stats"
-	xray_api "vpngui/internal/app/xray-api"
+	xrayapi "vpngui/internal/app/xray-api"
 	"vpngui/pkg/db"
 	embedded "vpngui/pkg/embed"
 	"vpngui/pkg/logger"
@@ -50,8 +50,8 @@ var (
 	settingsRepo  *repository.SettingsRepository
 	configRepo    *repository.ConfigRepository
 	routesRepo    *repository.RoutesRepository
-	runXrayApi    *xray_api.RunXrayAPI
-	routesXrayApi *xray_api.RoutesXrayAPI
+	runXrayApi    *xrayapi.RunXrayAPI
+	routesXrayApi *xrayapi.RoutesXrayAPI
 	traffic       *stats.Traffic
 	capLog        *log.Log
 	cfg           *config.Config
@@ -86,9 +86,9 @@ func setupApplication() *App {
 	settingsRepo = repository.NewSettings()
 	configRepo = repository.NewConfig()
 	routesRepo = repository.NewRoutes()
-	runXrayApi = xray_api.NewRun(configRepo)
-	routesXrayApi = xray_api.NewRoutes(runXrayApi, routesRepo)
-	traffic = stats.NewTraffic()
+	runXrayApi = xrayapi.NewRun(configRepo)
+	routesXrayApi = xrayapi.NewRoutes(runXrayApi, routesRepo)
+	traffic = stats.NewTraffic(configRepo)
 	capLog = log.New()
 
 	go capLog.CaptureStdout()

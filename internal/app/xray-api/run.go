@@ -33,7 +33,7 @@ func NewRun(cr *repository.ConfigRepository) *RunXrayAPI {
 func (x *RunXrayAPI) Run() error {
 	logger.Info("Starting xray-api")
 
-	cmd = exec.Command(embed.GetTempFileName(), "run", "-c", "config/xray.json")
+	cmd = exec.Command(embed.GetTempFileName("xray-core"), "run", "-c", "config/xray.json")
 	cmd.SysProcAttr = command.GetSysProcAttr()
 	cmd.Stderr = os.Stderr
 
@@ -57,6 +57,16 @@ func (x *RunXrayAPI) Run() error {
 
 func (x *RunXrayAPI) Kill() error {
 	logger.Info("Stopping xray API")
+
+	if err := proxy.Disable(); err != nil {
+		logger.Error("Failed to update VPN state", zap.Error(err))
+		return err
+	}
+	if err := x.cr.UpdateActiveVPN(false); err != nil {
+		logger.Error("Failed to update active VPN state", zap.Error(err))
+		return err
+	}
+
 	if cmd != nil && cmd.Process != nil {
 		var err error
 		if runtime.GOOS == "windows" {
@@ -76,14 +86,6 @@ func (x *RunXrayAPI) Kill() error {
 		}
 	}
 
-	if err := proxy.Disable(); err != nil {
-		logger.Error("Failed to update VPN state", zap.Error(err))
-		return err
-	}
-	if err := x.cr.UpdateActiveVPN(false); err != nil {
-		logger.Error("Failed to update active VPN state", zap.Error(err))
-		return err
-	}
 	logger.Debug("xray-api stopped successfully")
 
 	return nil
@@ -119,6 +121,25 @@ func (x *RunXrayAPI) KillOnClose() error {
 	return nil
 }
 
+func TerminateProcesses() error {
+	var cmd *exec.Cmd
+
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("taskkill", "/FI", "IMAGENAME eq xray-core*", "/F")
+	} else {
+		cmd = exec.Command("pkill", "-f", "xray-core")
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Error("Failed to terminate xray-core processes", zap.Error(err), zap.String("output", string(output)))
+		return err
+	}
+
+	logger.Info("Successfully terminated xray-core processes")
+	return nil
+}
+
 func (x *RunXrayAPI) handleStdout(stdoutPipe io.ReadCloser) {
 	logger.Info("Handling stdout for xray API")
 	scanner := bufio.NewScanner(stdoutPipe)
@@ -137,6 +158,20 @@ func (x *RunXrayAPI) handleStdout(stdoutPipe io.ReadCloser) {
 				logger.Error("Failed to update VPN state", zap.Error(err))
 				return
 			}
+		} else if strings.Contains(line, "address already in use") {
+			err := TerminateProcesses()
+			if err != nil {
+				logger.Error("Failed to terminate xray-core processes", zap.Error(err))
+
+				if err := proxy.Disable(); err != nil {
+					logger.Error("Failed to update VPN state", zap.Error(err))
+				}
+
+				if err := x.cr.UpdateActiveVPN(false); err != nil {
+					logger.Error("Failed to update VPN state", zap.Error(err))
+					return
+				}
+			}
 		}
 	}
 }
@@ -147,10 +182,9 @@ func (x *RunXrayAPI) waitForExit() {
 
 		if err := proxy.Disable(); err != nil {
 			logger.Error("Failed to update VPN state", zap.Error(err))
-			return
 		}
 
-		if err := x.cr.UpdateActiveVPN(true); err != nil {
+		if err := x.cr.UpdateActiveVPN(false); err != nil {
 			logger.Error("Failed to update VPN state", zap.Error(err))
 			return
 		}

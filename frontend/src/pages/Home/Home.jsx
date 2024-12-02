@@ -9,6 +9,10 @@ import {VpnStatuses} from "../../constants/vpnStatuses.jsx";
 import '@styles/pages/home.css'
 import {useXray} from "../../contexts/XrayAPI.jsx";
 import { toast } from 'react-toastify';
+import ToggleSwitch from "../../components/specific/ToggleSwitch.jsx";
+import TrafficMonitor from "../../components/specific/TrafficMonitor.jsx";
+import RouteCheckbox from "../../components/specific/DisableRoutesCheckbox.jsx";
+import {formatBytes} from "../../utils/formatBytes.js";
 
 function PageMain() {
     const [isOn, setIsOn] = useState(false);
@@ -22,46 +26,45 @@ function PageMain() {
 
     const handleToggle = async () => {
         if (!isOn) {
-            setStatus(VpnStatuses["waitOn"]);
-            try {
-                const result = await RunXrayAPI.Run();
-                if (result !== null) {
-                    throw new Error(result);
-                }
-            } catch (error) {
-                toast.error(`Ошибка: ${error}`);
-            }
-
-            const intervalId = setInterval(async () => {
-                const config = await ConfigRepository.GetConfig();
-
-                if (config["ActiveVPN"]) {
-                    setStatus(VpnStatuses["on"]);
-                    clearInterval(intervalId);
-                }
-            }, 100);
+            await toggleOn();
         } else {
-            setStatus(VpnStatuses["waitOff"]);
-            try {
-                const result = await RunXrayAPI.Kill();
-                if (result !== null) {
-                    throw new Error(result);
-                }
-            } catch (error) {
-                toast.error(`Ошибка: ${error}`);
-            }
-
-            const intervalId = setInterval(async () => {
-                const config = await ConfigRepository.GetConfig();
-
-                if (!config["ActiveVPN"]) {
-                    setStatus(VpnStatuses["off"]);
-                    clearInterval(intervalId);
-                }
-            }, 100)
+            await toggleOff();
         }
+        setIsOn((prev) => !prev);
+    };
 
-        setIsOn(prev => !prev);
+    const toggleOn = async () => {
+        setStatus(VpnStatuses["waitOn"]);
+        try {
+            const result = await RunXrayAPI.Run();
+            if (result !== null) throw new Error(result);
+
+            await waitForConfig(true);
+        } catch (error) {
+            toast.error(`Ошибка: ${error}`);
+        }
+    };
+
+    const toggleOff = async () => {
+        setStatus(VpnStatuses["waitOff"]);
+        try {
+            const result = await RunXrayAPI.Kill();
+            if (result !== null) throw new Error(result);
+
+            await waitForConfig(false);
+        } catch (error) {
+            toast.error(`Ошибка: ${error}`);
+        }
+    };
+
+    const waitForConfig = async (shouldBeActive) => {
+        const intervalId = setInterval(async () => {
+            const config = await ConfigRepository.GetConfig();
+            if (config["ActiveVPN"] === shouldBeActive) {
+                setStatus(shouldBeActive ? VpnStatuses["on"] : VpnStatuses["off"]);
+                clearInterval(intervalId);
+            }
+        }, 100);
     };
 
     useEffect(() => {
@@ -75,7 +78,7 @@ function PageMain() {
             }
 
             if (config["DisableRoutes"]) {
-                setIsChecked(false);
+                setIsChecked(true);
             }
 
             for (const outbound of xray["outbounds"]) {
@@ -102,71 +105,32 @@ function PageMain() {
         return () => clearInterval(intervalId);
     }, []);
 
-    const formatBytes = (bytes) => {
-        if (bytes < 0) return `0.00 Kb/s`;
-        const kb = bytes / 1024;
-        if (kb < 1024) return `${kb.toFixed(2)} Kb/s`;
-        const mb = kb / 1024;
-        if (mb < 1024) return `${mb.toFixed(2)} Mb/s`;
-        const gb = mb / 1024;
-        return `${gb.toFixed(2)} Gb/s`;
-    };
-
     const handleCheckboxChange = async () => {
-        if (isChecked) {
-            try {
-                const result = await RoutesXrayAPI.EnableRoutes();
-                if (result !== null) {
-                    throw new Error(result);
-                }
-            } catch (error) {
-                toast.error(`Ошибка: ${error}`);
-            }
-        } else {
-            try {
-                const result = await RoutesXrayAPI.DisableRoutes();
-                if (result !== null) {
-                    throw new Error(result);
-                }
-            } catch (error) {
-                toast.error(`Ошибка: ${error}`);
-            }
+        try {
+            const result = isChecked
+                ? await RoutesXrayAPI.EnableRoutes()
+                : await RoutesXrayAPI.DisableRoutes();
+            if (result !== null) throw new Error(result);
+        } catch (error) {
+            toast.error(`Ошибка: ${error}`);
         }
-
-        setIsChecked(!isChecked);
+        setIsChecked((prev) => !prev);
     };
 
     return (
         <>
-            <div className="main-controls">
-                <p className={`toggle-status ${isOn ? 'on' : 'off'}`}>{status}</p>
-                <div className={`toggle-switch ${isOn ? 'on' : 'off'}`} onClick={handleToggle}>
-                    <div className="toggle-knob">
-                        <span className="icon">⏻</span>
-                    </div>
-                </div>
-                <p className="toggle-country">{isOn && countryCode !== "" ? <>{Countries[countryCode]}</> : <>&nbsp;</>}</p>
-                <p className="toggle-ip">&nbsp;{isOn && ip !== "" ? <>IP: {ip}</> : <>&nbsp;</>}</p>
-            </div>
-            <div className="traffic">
-                <div className="traffic-proxy">
-                    <div className="traffic-proxy_download">
-                        <p className="traffic-title">Загрузка</p>
-                        <p className="traffic-speed">▲ {isTrafficProxyUplink}</p>
-                    </div>
-                    <div className="traffic-proxy_upload">
-                        <p className="traffic-title">Отдача</p>
-                        <p className="traffic-speed">▼ {isTrafficProxyDownlink}</p>
-                    </div>
-                </div>
-            </div>
-            <div className="disable-routes">
-                <label className="checkbox-routes">
-                    <input type="checkbox" checked={isChecked} onChange={handleCheckboxChange}/>
-                    {/*<span className="checkbox"></span>*/ }
-                    Отключить маршруты
-                </label>
-            </div>
+            <ToggleSwitch
+                isOn={isOn}
+                status={status}
+                onToggle={handleToggle}
+                country={Countries[countryCode]}
+                ip={ip}
+            />
+            <TrafficMonitor
+                uplink={isTrafficProxyUplink}
+                downlink={isTrafficProxyDownlink}
+            />
+            <RouteCheckbox isChecked={isChecked} onChange={handleCheckboxChange} />
         </>
     );
 }

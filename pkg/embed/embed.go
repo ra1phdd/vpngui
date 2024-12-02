@@ -1,18 +1,13 @@
 package embed
 
 import (
+	"embed"
 	_ "embed"
 	"fmt"
 	"log"
 	"os"
 	"vpngui/internal/app/config"
 )
-
-//go:embed certs/cert.pem
-var embeddedCert []byte
-
-//go:embed certs/key.pem
-var embeddedKey []byte
 
 //go:embed config/xray.json
 var embeddedXray []byte
@@ -24,18 +19,28 @@ var nameFile = make(map[string]string)
 
 func Init() error {
 	Configs()
-	Certs()
 	DB()
 
-	name := getFileName()
+	err := CreateFile(getFileXray(), "bin", fsXray)
+	if err != nil {
+		return err
+	}
+	err = CreateFile(getFileTun2socks(), "tun2socks", fsTun2socks)
+	if err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func CreateFile(name string, dir string, fs embed.FS) error {
 	tempFile, err := os.CreateTemp("", name)
 	if err != nil {
 		log.Fatalf("Ошибка создания временного файла: %v", err)
 		return err
 	}
 
-	fileData, err := fs.ReadFile(fmt.Sprintf("bin/%s", name))
+	fileData, err := fs.ReadFile(fmt.Sprintf("%s/%s", dir, name))
 	if err != nil {
 		log.Fatalf("Ошибка чтения бинарника: %v", err)
 		return err
@@ -56,37 +61,15 @@ func Init() error {
 	return nil
 }
 
-func GetTempFileName() string {
-	name := getFileName()
-
-	return nameFile[name]
-}
-
-func Certs() {
-	certDir := "certs"
-	FileCert := certDir + "/cert.pem"
-	FileKey := certDir + "/key.pem"
-
-	if err := os.MkdirAll(certDir, 0755); err != nil {
-		fmt.Printf("Ошибка создания директории: %v\n", err)
-		return
+func GetTempFileName(name string) string {
+	switch name {
+	case "xray-core":
+		return nameFile[getFileXray()]
+	case "tun2socks":
+		return nameFile[getFileTun2socks()]
 	}
 
-	if _, err := os.Stat(FileCert); os.IsNotExist(err) {
-		err = os.WriteFile(FileCert, embeddedCert, 0644)
-		if err != nil {
-			fmt.Printf("Ошибка записи файла: %v\n", err)
-			return
-		}
-	}
-
-	if _, err := os.Stat(FileKey); os.IsNotExist(err) {
-		err = os.WriteFile(FileKey, embeddedKey, 0644)
-		if err != nil {
-			fmt.Printf("Ошибка записи файла: %v\n", err)
-			return
-		}
-	}
+	return ""
 }
 
 func Configs() {

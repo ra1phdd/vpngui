@@ -1,12 +1,13 @@
 package logger
 
 import (
-	"log"
-	"os"
-	"time"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"io"
+	"log"
+	"os"
+	"sync"
+	"time"
 )
 
 var logger *zap.Logger
@@ -37,12 +38,13 @@ func Init() {
 	logLevel = zap.NewAtomicLevel()
 	logLevel.SetLevel(zapcore.InfoLevel)
 
+	customWriter := &customSyncer{writer: os.Stdout}
+
 	core := zapcore.NewTee(
 		zapcore.NewCore(fileEncoder, writer, logLevel),
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), logLevel),
+		zapcore.NewCore(consoleEncoder, zapcore.AddSync(customWriter), logLevel),
 	)
 	logger = zap.New(core, zap.AddStacktrace(zapcore.FatalLevel))
-	defer logger.Sync()
 }
 
 func SetLogLevel(level string) {
@@ -60,6 +62,30 @@ func SetLogLevel(level string) {
 	default:
 		logLevel.SetLevel(zapcore.InfoLevel)
 	}
+}
+
+var (
+	OutLog []string
+	MuLog  sync.Mutex
+)
+
+type customSyncer struct {
+	mu     sync.Mutex
+	writer io.Writer
+}
+
+func (c *customSyncer) Write(p []byte) (n int, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	line := string(p)
+	OutLog = append(OutLog, line)
+
+	return c.writer.Write(p)
+}
+
+func (c *customSyncer) Sync() error {
+	return nil
 }
 
 func Debug(message string, fields ...zap.Field) {

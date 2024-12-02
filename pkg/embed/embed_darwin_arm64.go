@@ -7,8 +7,15 @@ import (
 )
 
 //go:embed bin/xray-core-darwin-arm64
-var fs embed.FS
+var fsXray embed.FS
 
-func getFileName() string {
+//go:embed tun2socks/tun2socks-darwin-arm64
+var fsTun2socks embed.FS
+
+func getFileXray() string {
 	return "xray-core-darwin-arm64"
+}
+
+func getFileTun2socks() string {
+	return "tun2socks-darwin-arm64"
 }

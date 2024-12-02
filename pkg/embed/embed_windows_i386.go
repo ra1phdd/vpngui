@@ -7,8 +7,15 @@ import (
 )
 
 //go:embed bin/xray-core-windows-i386.exe
-var fs embed.FS
+var fsXray embed.FS
 
-func getFileName() string {
+//go:embed tun2socks/tun2socks-windows-i386.exe
+var fsTun2socks embed.FS
+
+func getFileXray() string {
 	return "xray-core-windows-i386.exe"
+}
+
+func getFileTun2socks() string {
+	return "tun2socks-windows-i386.exe"
 }
