@@ -1,8 +1,12 @@
 import React, {useEffect, useState} from 'react';
 import '@styles/pages/routes.css';
-import * as RoutesXrayAPI from "../../../wailsjs/go/xray_api/RoutesXrayAPI.js";
 import ModeSwitch from "../../components/specific/ModeListSwitch.jsx";
 import {RoutesSection} from "../../components/specific/RoutesComponents.jsx";
+import {
+    DisableBlackList, EnableBlackList,
+    GetDomain, GetPort, GetIP,
+} from "../../../bindings/vpngui/internal/app/xray-api/routesxrayapi.js";
+import {RoutesXrayAPI} from "../../../bindings/vpngui/internal/app/xray-api/index.js";
 
 function PageRoutes() {
     const [isChecked, setIsChecked] = useState(false);
@@ -25,9 +29,9 @@ function PageRoutes() {
 
     const fetchList = async (listType) => {
         const [domains, ips, ports] = await Promise.all([
-            RoutesXrayAPI.GetDomain(listType),
-            RoutesXrayAPI.GetIP(listType),
-            RoutesXrayAPI.GetPort(listType),
+            GetDomain(listType),
+            GetIP(listType),
+            GetPort(listType),
         ]);
 
         setData((prev) => ({
@@ -45,9 +49,9 @@ function PageRoutes() {
 
     const handleCheckboxChange = async () => {
         if (isChecked) {
-            await RoutesXrayAPI.EnableBlackList();
+            await EnableBlackList();
         } else {
-            await RoutesXrayAPI.DisableBlackList();
+            await DisableBlackList();
         }
         setIsChecked(!isChecked);
     };

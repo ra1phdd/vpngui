@@ -3,6 +3,7 @@
     "@coreui/coreui": "^5.1.2",
     "@coreui/react": "^5.4.0",
     "@wailsapp/runtime": "^1.1.1",
+    "@wailsio/runtime": "^3.0.0-alpha.29",
     "path": "^0.12.7",
     "react-toastify": "^10.0.6",
     "react-transition-group": "^4.4.5",

@@ -1,14 +1,8 @@
 package app
 
 import (
-	"context"
 	"embed"
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/linux"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
-	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	wails "github.com/wailsapp/wails/v3/pkg/application"
 	"go.uber.org/zap"
 	"runtime"
 	"time"
@@ -23,23 +17,27 @@ import (
 )
 
 type App struct {
-	ctx context.Context
+	wails *wails.App
 }
 
 func NewApp() *App {
 	return &App{}
 }
 
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
-}
-
-func (a *App) shutdown(_ context.Context) {
+func (a *App) shutdown() {
 	err := runXrayApi.KillOnClose()
 	if err != nil {
 		logger.Error("Failed to kill Xray API", zap.Error(err))
 		return
 	}
+}
+
+func (a *App) Hide() {
+	a.wails.Hide()
+}
+
+func (a *App) Show() {
+	a.wails.Show()
 }
 
 func (a *App) IsGOOSWindows() bool {
@@ -82,7 +80,6 @@ func New(assets embed.FS) error {
 }
 
 func setupApplication() *App {
-	app := NewApp()
 	settingsRepo = repository.NewSettings()
 	configRepo = repository.NewConfig()
 	routesRepo = repository.NewRoutes()
@@ -96,6 +93,7 @@ func setupApplication() *App {
 	cfg = config.New()
 	routesXrayApi.ActualizeConfig()
 
+	app := NewApp()
 	return app
 }
 
@@ -108,45 +106,179 @@ func startTrafficCapture(interval int) {
 }
 
 func runWailsApp(assets embed.FS, app *App) error {
-	err := wails.Run(&options.App{
-		Title:             "VPN-GUI",
-		Width:             750,
-		Height:            500,
-		DisableResize:     true,
-		HideWindowOnClose: true,
-		Frameless:         runtime.GOOS == "windows",
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+	app.wails = wails.New(wails.Options{
+		Name:        "VPN-GUI",
+		Description: "VPN",
+		Services: []wails.Service{
+			wails.NewService(app),
+			wails.NewService(cfg),
+			wails.NewService(settingsRepo),
+			wails.NewService(configRepo),
+			wails.NewService(routesRepo),
+			wails.NewService(runXrayApi),
+			wails.NewService(routesXrayApi),
+			wails.NewService(traffic),
+			wails.NewService(capLog),
 		},
-		OnStartup:  app.startup,
+		Assets: wails.AssetOptions{
+			Handler: wails.AssetFileServerFS(assets),
+		},
 		OnShutdown: app.shutdown,
-		Bind: []interface{}{
-			app,
-			settingsRepo,
-			configRepo,
-			routesRepo,
-			runXrayApi,
-			routesXrayApi,
-			cfg,
-			capLog,
-			traffic,
-		},
-		Mac: &mac.Options{
-			WebviewIsTransparent: true,
-			TitleBar:             mac.TitleBarHiddenInset(),
-		},
-		Linux: &linux.Options{
-			WindowIsTranslucent: false,
-			WebviewGpuPolicy:    linux.WebviewGpuPolicyAlways,
-		},
-		Windows: &windows.Options{
-			IsZoomControlEnabled: false,
-			DisablePinchZoom:     true,
+		Mac: wails.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 	})
+
+	app.wails.NewWebviewWindowWithOptions(wails.WebviewWindowOptions{
+		Title:         "VPN-GUI",
+		Width:         750,
+		Height:        500,
+		DisableResize: true,
+		Frameless:     runtime.GOOS == "windows",
+		Mac: wails.MacWindow{
+			InvisibleTitleBarHeight: 50,
+			Backdrop:                wails.MacBackdropTranslucent,
+			TitleBar:                wails.MacTitleBarHiddenInset,
+		},
+		Linux: wails.LinuxWindow{
+			WindowIsTranslucent: false,
+			WebviewGpuPolicy:    wails.WebviewGpuPolicyAlways,
+		},
+		Windows: wails.WindowsWindow{
+			HiddenOnTaskbar: true,
+		},
+		BackgroundColour: wails.NewRGB(27, 38, 54),
+		URL:              "/",
+	})
+
+	go func() {
+		for {
+			now := time.Now().Format(time.RFC1123)
+			app.wails.EmitEvent("time", now)
+			time.Sleep(time.Second)
+		}
+	}()
+	systemTray(app)
+
+	err := app.wails.Run()
 	if err != nil {
-		logger.Fatal("Failed to start app", zap.Error(err))
+		logger.Fatal("Failed to start application", zap.Error(err))
 	}
 
+	//HideWindowOnClose: true,
+	//OnStartup:  app.startup,
+	//OnShutdown: app.shutdown,
+
 	return nil
+}
+
+func systemTray(app *App) {
+	tray := app.wails.NewSystemTray()
+	tray.SetLabel("VPN")
+
+	menu := app.wails.NewMenu()
+
+	menu.Add("Открыть окно").OnClick(func(_ *wails.Context) {
+		app.wails.Show()
+	})
+
+	menu.AddSeparator()
+
+	menu.Add("Включить VPN").OnClick(func(_ *wails.Context) {
+		c, err := configRepo.GetConfig()
+		if err != nil {
+			logger.Error("Failed to get config", zap.Error(err))
+			return
+		}
+
+		if c.ActiveVPN == false {
+			err = runXrayApi.Run()
+			if err != nil {
+				logger.Error("Failed to run xray-core", zap.Error(err))
+				return
+			}
+		}
+	})
+	menu.Add("Выключить VPN").OnClick(func(_ *wails.Context) {
+		c, err := configRepo.GetConfig()
+		if err != nil {
+			logger.Error("Failed to get config", zap.Error(err))
+			return
+		}
+
+		if c.ActiveVPN == true {
+			err = runXrayApi.Run()
+			if err != nil {
+				logger.Error("Failed to run xray-core", zap.Error(err))
+				return
+			}
+		}
+	})
+	menu.Add("Перезапустить VPN").OnClick(func(_ *wails.Context) {
+		c, err := configRepo.GetConfig()
+		if err != nil {
+			logger.Error("Failed to get config", zap.Error(err))
+			return
+		}
+
+		if c.ActiveVPN == true {
+			err = runXrayApi.Kill()
+			if err != nil {
+				logger.Error("Failed to kill xray-core", zap.Error(err))
+				return
+			}
+		}
+		err = runXrayApi.Run()
+		if err != nil {
+			logger.Error("Failed to run xray-core", zap.Error(err))
+			return
+		}
+	})
+
+	menu.AddSeparator()
+
+	menu.Add("Включить маршруты").OnClick(func(_ *wails.Context) {
+		c, err := configRepo.GetConfig()
+		if err != nil {
+			logger.Error("Failed to get config", zap.Error(err))
+			return
+		}
+
+		if c.DisableRoutes == true {
+			err = routesXrayApi.EnableRoutes()
+			if err != nil {
+				logger.Error("Failed to enable routes", zap.Error(err))
+				return
+			}
+		}
+	})
+	menu.Add("Отключить маршруты").OnClick(func(_ *wails.Context) {
+		c, err := configRepo.GetConfig()
+		if err != nil {
+			logger.Error("Failed to get config", zap.Error(err))
+			return
+		}
+
+		if c.DisableRoutes == false {
+			err = routesXrayApi.DisableRoutes()
+			if err != nil {
+				logger.Error("Failed to enable routes", zap.Error(err))
+				return
+			}
+		}
+	})
+
+	menu.AddSeparator()
+
+	menu.Add("Режим работы").OnClick(func(_ *wails.Context) {
+		app.Hide()
+	})
+
+	menu.AddSeparator()
+
+	menu.Add("Выход").OnClick(func(_ *wails.Context) {
+		app.wails.Quit()
+	})
+
+	tray.SetMenu(menu)
 }

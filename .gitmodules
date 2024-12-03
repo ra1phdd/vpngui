@@ -1,0 +1,3 @@
+[submodule "systray"]
+	path = systray
+	url = https://github.com/fyne-io/systray.git

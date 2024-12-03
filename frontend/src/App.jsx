@@ -5,6 +5,8 @@ import WindowControls from "./components/common/windowControls.jsx";
 import '@styles/main.css';
 import {ToastContainer} from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
+import {Run} from "../bindings/vpngui/internal/app/xray-api/runxrayapi.js";
+import {GetConfig} from "../bindings/vpngui/internal/app/repository/configrepository.js";
 
 const PageHome = lazy(() => import("./pages/Home/Home.jsx"));
 const PageRoutes = lazy(() => import("./pages/Routes/Routes.jsx"));
@@ -22,6 +24,14 @@ function App() {
         return () => {
             document.removeEventListener('selectstart', handleSelectStart);
         };
+    }, []);
+
+    useEffect(async () => {
+        const config = await GetConfig();
+
+        if (config["ActiveVPN"]) {
+            await Run();
+        }
     }, []);
 
     return (

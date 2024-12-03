@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import * as RoutesXrayAPI from "../../../wailsjs/go/xray_api/RoutesXrayAPI.js";
-import * as RunXrayAPI from "../../../wailsjs/go/xray_api/RunXrayAPI.js";
-import * as Config from "../../../wailsjs/go/config/Config.js";
-import * as ConfigRepository from "../../../wailsjs/go/repository/ConfigRepository.js";
-import * as Traffic from "../../../wailsjs/go/stats/Traffic.js";
+import {EnableRoutes, DisableRoutes} from "../../../bindings/vpngui/internal/app/xray-api/routesxrayapi.js";
+import {Run, Kill} from "../../../bindings/vpngui/internal/app/xray-api/runxrayapi.js";
+import {Get} from "../../../bindings/vpngui/internal/app/config/config.js";
+import {GetConfig} from "../../../bindings/vpngui/internal/app/repository/configrepository.js";
+import {GetTraffic} from "../../../bindings/vpngui/internal/app/stats/traffic.js";
 import {Countries} from "../../constants/countries.jsx";
 import {VpnStatuses} from "../../constants/vpnStatuses.jsx";
 import '@styles/pages/home.css'
-import {useXray} from "../../contexts/XrayAPI.jsx";
 import { toast } from 'react-toastify';
 import ToggleSwitch from "../../components/specific/ToggleSwitch.jsx";
 import TrafficMonitor from "../../components/specific/TrafficMonitor.jsx";
@@ -22,57 +21,48 @@ function PageMain() {
     const [isChecked, setIsChecked] = useState(false);
     const [isTrafficProxyUplink, setIsTrafficProxyUplink] = useState("0.00 Kb/s");
     const [isTrafficProxyDownlink, setIsTrafficProxyDownlink] = useState("0.00 Kb/s");
-    const { isXrayRunning } = useXray();
 
     const handleToggle = async () => {
         if (!isOn) {
+            setStatus(VpnStatuses["waitOn"]);
             await toggleOn();
+            setStatus(VpnStatuses["on"]);
         } else {
+            setStatus(VpnStatuses["waitOff"]);
             await toggleOff();
+            setStatus(VpnStatuses["off"]);
         }
         setIsOn((prev) => !prev);
     };
 
     const toggleOn = async () => {
-        setStatus(VpnStatuses["waitOn"]);
         try {
-            const result = await RunXrayAPI.Run();
+            const result = await Run();
             if (result !== null) throw new Error(result);
-
-            await waitForConfig(true);
         } catch (error) {
-            toast.error(`Ошибка: ${error}`);
+            if (error.error !== undefined) {
+                toast.error(`Ошибка: ${error.error}`);
+            }
         }
     };
 
     const toggleOff = async () => {
-        setStatus(VpnStatuses["waitOff"]);
         try {
-            const result = await RunXrayAPI.Kill();
+            const result = await Kill();
             if (result !== null) throw new Error(result);
-
-            await waitForConfig(false);
         } catch (error) {
-            toast.error(`Ошибка: ${error}`);
-        }
-    };
-
-    const waitForConfig = async (shouldBeActive) => {
-        const intervalId = setInterval(async () => {
-            const config = await ConfigRepository.GetConfig();
-            if (config["ActiveVPN"] === shouldBeActive) {
-                setStatus(shouldBeActive ? VpnStatuses["on"] : VpnStatuses["off"]);
-                clearInterval(intervalId);
+            if (error.error !== undefined) {
+                toast.error(`Ошибка: ${error.error}`);
             }
-        }, 100);
+        }
     };
 
     useEffect(() => {
         const checkVPNStatus = async () => {
-            const config = await ConfigRepository.GetConfig();
-            const xray = await Config.Get();
+            const config = await GetConfig();
+            const xray = await Get();
 
-            if (config["ActiveVPN"] && isXrayRunning) {
+            if (config["ActiveVPN"]) {
                 setIsOn(true);
                 setStatus(VpnStatuses["on"]);
             }
@@ -94,8 +84,8 @@ function PageMain() {
 
     useEffect(() => {
         const fetchTrafficData = async () => {
-            const proxyUplink = await Traffic.GetTraffic("proxy", "uplink");
-            const proxyDownlink = await Traffic.GetTraffic("proxy", "downlink");
+            const proxyUplink = await GetTraffic("proxy", "uplink");
+            const proxyDownlink = await GetTraffic("proxy", "downlink");
 
             setIsTrafficProxyUplink(formatBytes(proxyUplink));
             setIsTrafficProxyDownlink(formatBytes(proxyDownlink));
@@ -108,11 +98,13 @@ function PageMain() {
     const handleCheckboxChange = async () => {
         try {
             const result = isChecked
-                ? await RoutesXrayAPI.EnableRoutes()
-                : await RoutesXrayAPI.DisableRoutes();
+                ? await EnableRoutes()
+                : await DisableRoutes();
             if (result !== null) throw new Error(result);
         } catch (error) {
-            toast.error(`Ошибка: ${error}`);
+            if (error.error !== undefined) {
+                toast.error(`Ошибка: ${error.error}`);
+            }
         }
         setIsChecked((prev) => !prev);
     };

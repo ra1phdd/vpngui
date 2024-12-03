@@ -1,6 +1,6 @@
 import React, {useState, useEffect, useRef} from 'react';
 import '@styles/pages/log.css';
-import * as Log from "../../../wailsjs/go/log/Log.js";
+import {GetLogs} from "../../../bindings/vpngui/internal/app/log/log.js";
 
 function PageLog() {
     const [log, setLog] = useState('');
@@ -8,7 +8,7 @@ function PageLog() {
 
     useEffect(() => {
         const intervalId = setInterval(async () => {
-            const text = await Log.GetLogs();
+            const text = await GetLogs();
             setLog(text);
         }, 1000);
 

@@ -1,22 +1,22 @@
 import '../../assets/styles/components/windowControls.css'
 import {useEffect, useState} from "react";
-import * as App from "../../../wailsjs/go/app/App.js";
-import {WindowHide, WindowMinimise} from "../../../wailsjs/runtime/runtime.js";
+import {IsGOOSWindows} from "../../../bindings/vpngui/internal/pkg/app/app.js";
+import {Hide} from "../../../bindings/vpngui/internal/pkg/app/app.js";
 
 function WindowControls() {
     const [isWindows, setIsWindows] = useState(false);
 
     useEffect(async () => {
-        const result = await App.IsGOOSWindows();
+        const result = await IsGOOSWindows();
         setIsWindows(result);
     }, []);
 
     const closeWindow = () => {
-        WindowHide()
+        Hide()
     };
 
     const minimizeWindow = () => {
-        WindowMinimise()
+        Hide()
     };
 
     return (
