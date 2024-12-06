@@ -5,7 +5,7 @@ import WindowControls from "./components/common/windowControls.jsx";
 import '@styles/main.css';
 import {ToastContainer} from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
-import {Run} from "../bindings/vpngui/internal/app/xray-api/runxrayapi.js";
+import {Run} from "../bindings/vpngui/internal/app/xray-core/runxraycore.js";
 import {GetConfig} from "../bindings/vpngui/internal/app/repository/configrepository.js";
 
 const PageHome = lazy(() => import("./pages/Home/Home.jsx"));

@@ -10,7 +10,7 @@ import (
 	"vpngui/internal/app/log"
 	"vpngui/internal/app/repository"
 	"vpngui/internal/app/stats"
-	xrayapi "vpngui/internal/app/xray-api"
+	xrayapi "vpngui/internal/app/xray-core"
 	"vpngui/pkg/db"
 	embedded "vpngui/pkg/embed"
 	"vpngui/pkg/logger"
@@ -25,7 +25,7 @@ func NewApp() *App {
 }
 
 func (a *App) shutdown() {
-	err := runXrayApi.KillOnClose()
+	err := runXrayApi.Kill(false)
 	if err != nil {
 		logger.Error("Failed to kill Xray API", zap.Error(err))
 		return
@@ -48,7 +48,7 @@ var (
 	settingsRepo  *repository.SettingsRepository
 	configRepo    *repository.ConfigRepository
 	routesRepo    *repository.RoutesRepository
-	runXrayApi    *xrayapi.RunXrayAPI
+	runXrayApi    *xrayapi.RunXrayCore
 	routesXrayApi *xrayapi.RoutesXrayAPI
 	traffic       *stats.Traffic
 	capLog        *log.Log
@@ -222,7 +222,7 @@ func systemTray(app *App) {
 		}
 
 		if c.ActiveVPN == true {
-			err = runXrayApi.Kill()
+			err = runXrayApi.Kill(true)
 			if err != nil {
 				logger.Error("Failed to kill xray-core", zap.Error(err))
 				return

@@ -1,4 +1,4 @@
-package xray_api
+package xray_core
 
 import (
 	"errors"
@@ -16,11 +16,11 @@ import (
 )
 
 type RoutesXrayAPI struct {
-	run *RunXrayAPI
+	run *RunXrayCore
 	rr  *repository.RoutesRepository
 }
 
-func NewRoutes(run *RunXrayAPI, rr *repository.RoutesRepository) *RoutesXrayAPI {
+func NewRoutes(run *RunXrayCore, rr *repository.RoutesRepository) *RoutesXrayAPI {
 	return &RoutesXrayAPI{
 		run: run,
 		rr:  rr,
@@ -139,7 +139,7 @@ func (x *RoutesXrayAPI) restartVPNIfActive(active bool) error {
 		return nil
 	}
 
-	err := x.run.Kill()
+	err := x.run.Kill(true)
 	if err != nil {
 		logger.Error("Failed to killed xray-api", zap.Error(err))
 		return err
@@ -678,9 +678,14 @@ func (x *RoutesXrayAPI) ActualizeConfig() {
 	}
 	config.Xray.Outbounds = append(config.Xray.Outbounds, outbound)
 
-	_, DefaultIP, err := tun.GetDefaultInterface()
+	DefaultInterface, err := tun.GetDefaultInterface()
 	if err != nil {
 		logger.Error("Error fetching default interface", zap.Error(err))
+		return
+	}
+	DefaultIP, err := tun.GetDefaultIP(DefaultInterface)
+	if err != nil {
+		logger.Error("Error fetching default IP", zap.Error(err))
 		return
 	}
 	for i := range config.Xray.Outbounds {

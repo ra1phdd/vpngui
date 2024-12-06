@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {EnableRoutes, DisableRoutes} from "../../../bindings/vpngui/internal/app/xray-api/routesxrayapi.js";
-import {Run, Kill} from "../../../bindings/vpngui/internal/app/xray-api/runxrayapi.js";
+import {EnableRoutes, DisableRoutes} from "../../../bindings/vpngui/internal/app/xray-core/routesxrayapi.js";
+import {Run, Kill} from "../../../bindings/vpngui/internal/app/xray-core/runxraycore.js";
 import {Get} from "../../../bindings/vpngui/internal/app/config/config.js";
 import {GetConfig} from "../../../bindings/vpngui/internal/app/repository/configrepository.js";
 import {GetTraffic} from "../../../bindings/vpngui/internal/app/stats/traffic.js";
@@ -48,7 +48,7 @@ function PageMain() {
 
     const toggleOff = async () => {
         try {
-            const result = await Kill();
+            const result = await Kill(true);
             if (result !== null) throw new Error(result);
         } catch (error) {
             if (error.error !== undefined) {

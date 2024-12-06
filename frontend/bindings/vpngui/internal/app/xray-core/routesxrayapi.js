@@ -14,7 +14,7 @@ import * as models$0 from "../models/models.js";
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function ActualizeConfig() {
-    let $resultPromise = /** @type {any} */($Call.ByID(3640805118));
+    let $resultPromise = /** @type {any} */($Call.ByID(2499906845));
     return $resultPromise;
 }
 
@@ -24,7 +24,7 @@ export function ActualizeConfig() {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function AddDomain(listMode, domain) {
-    let $resultPromise = /** @type {any} */($Call.ByID(832789031, listMode, domain));
+    let $resultPromise = /** @type {any} */($Call.ByID(2888351088, listMode, domain));
     return $resultPromise;
 }
 
@@ -34,7 +34,7 @@ export function AddDomain(listMode, domain) {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function AddIP(listMode, ip) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1229227802, listMode, ip));
+    let $resultPromise = /** @type {any} */($Call.ByID(430102085, listMode, ip));
     return $resultPromise;
 }
 
@@ -44,7 +44,7 @@ export function AddIP(listMode, ip) {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function AddPort(listMode, port) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1045494412, listMode, port));
+    let $resultPromise = /** @type {any} */($Call.ByID(4024869583, listMode, port));
     return $resultPromise;
 }
 
@@ -54,7 +54,7 @@ export function AddPort(listMode, port) {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function DelDomain(listMode, domain) {
-    let $resultPromise = /** @type {any} */($Call.ByID(866825505, listMode, domain));
+    let $resultPromise = /** @type {any} */($Call.ByID(1632926814, listMode, domain));
     return $resultPromise;
 }
 
@@ -64,7 +64,7 @@ export function DelDomain(listMode, domain) {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function DelIP(listMode, ip) {
-    let $resultPromise = /** @type {any} */($Call.ByID(4204939916, listMode, ip));
+    let $resultPromise = /** @type {any} */($Call.ByID(3082986715, listMode, ip));
     return $resultPromise;
 }
 
@@ -74,7 +74,7 @@ export function DelIP(listMode, ip) {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function DelPort(listMode, port) {
-    let $resultPromise = /** @type {any} */($Call.ByID(241446454, listMode, port));
+    let $resultPromise = /** @type {any} */($Call.ByID(315636501, listMode, port));
     return $resultPromise;
 }
 
@@ -82,7 +82,7 @@ export function DelPort(listMode, port) {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function DisableBlackList() {
-    let $resultPromise = /** @type {any} */($Call.ByID(37194071));
+    let $resultPromise = /** @type {any} */($Call.ByID(4246693654));
     return $resultPromise;
 }
 
@@ -90,7 +90,7 @@ export function DisableBlackList() {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function DisableRoutes() {
-    let $resultPromise = /** @type {any} */($Call.ByID(647638950));
+    let $resultPromise = /** @type {any} */($Call.ByID(3718076905));
     return $resultPromise;
 }
 
@@ -98,7 +98,7 @@ export function DisableRoutes() {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function EnableBlackList() {
-    let $resultPromise = /** @type {any} */($Call.ByID(3260102114));
+    let $resultPromise = /** @type {any} */($Call.ByID(490675829));
     return $resultPromise;
 }
 
@@ -106,7 +106,7 @@ export function EnableBlackList() {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function EnableRoutes() {
-    let $resultPromise = /** @type {any} */($Call.ByID(2354769125));
+    let $resultPromise = /** @type {any} */($Call.ByID(2511092524));
     return $resultPromise;
 }
 
@@ -115,7 +115,7 @@ export function EnableRoutes() {
  * @returns {Promise<string> & { cancel(): void }}
  */
 export function GetDomain(listMode) {
-    let $resultPromise = /** @type {any} */($Call.ByID(329915160, listMode));
+    let $resultPromise = /** @type {any} */($Call.ByID(54795275, listMode));
     return $resultPromise;
 }
 
@@ -124,7 +124,7 @@ export function GetDomain(listMode) {
  * @returns {Promise<string> & { cancel(): void }}
  */
 export function GetIP(listMode) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1415065821, listMode));
+    let $resultPromise = /** @type {any} */($Call.ByID(683195982, listMode));
     return $resultPromise;
 }
 
@@ -133,7 +133,7 @@ export function GetIP(listMode) {
  * @returns {Promise<string> & { cancel(): void }}
  */
 export function GetPort(listMode) {
-    let $resultPromise = /** @type {any} */($Call.ByID(849224487, listMode));
+    let $resultPromise = /** @type {any} */($Call.ByID(2650306624, listMode));
     return $resultPromise;
 }
 
@@ -144,6 +144,6 @@ export function GetPort(listMode) {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function SwapOutbounds(outbounds, tag1, tag2) {
-    let $resultPromise = /** @type {any} */($Call.ByID(3672520520, outbounds, tag1, tag2));
+    let $resultPromise = /** @type {any} */($Call.ByID(1170879283, outbounds, tag1, tag2));
     return $resultPromise;
 }

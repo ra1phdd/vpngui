@@ -7,18 +7,11 @@
 import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 
 /**
+ * @param {boolean} updateActiveVPN
  * @returns {Promise<void> & { cancel(): void }}
  */
-export function Kill() {
-    let $resultPromise = /** @type {any} */($Call.ByID(4143057079));
-    return $resultPromise;
-}
-
-/**
- * @returns {Promise<void> & { cancel(): void }}
- */
-export function KillOnClose() {
-    let $resultPromise = /** @type {any} */($Call.ByID(3078502926));
+export function Kill(updateActiveVPN) {
+    let $resultPromise = /** @type {any} */($Call.ByID(1733052041, updateActiveVPN));
     return $resultPromise;
 }
 
@@ -26,6 +19,6 @@ export function KillOnClose() {
  * @returns {Promise<void> & { cancel(): void }}
  */
 export function Run() {
-    let $resultPromise = /** @type {any} */($Call.ByID(2967603648));
+    let $resultPromise = /** @type {any} */($Call.ByID(2121787930));
     return $resultPromise;
 }

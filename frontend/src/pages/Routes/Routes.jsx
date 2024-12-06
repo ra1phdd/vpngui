@@ -5,8 +5,8 @@ import {RoutesSection} from "../../components/specific/RoutesComponents.jsx";
 import {
     DisableBlackList, EnableBlackList,
     GetDomain, GetPort, GetIP,
-} from "../../../bindings/vpngui/internal/app/xray-api/routesxrayapi.js";
-import {RoutesXrayAPI} from "../../../bindings/vpngui/internal/app/xray-api/index.js";
+} from "../../../bindings/vpngui/internal/app/xray-core/routesxrayapi.js";
+import {RoutesXrayAPI} from "../../../bindings/vpngui/internal/app/xray-core/index.js";
 
 function PageRoutes() {
     const [isChecked, setIsChecked] = useState(false);
