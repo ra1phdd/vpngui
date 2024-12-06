@@ -7,13 +7,19 @@ import (
 	"os/exec"
 	"runtime"
 	"vpngui/internal/app/command"
+	"vpngui/internal/app/tun"
 	"vpngui/pkg/logger"
 )
 
 func Enable() error {
+	err := tun.Enable()
+	if err != nil {
+		return err
+	}
+	return nil
 	logger.Info("Enabling proxy settings based on OS")
 
-	var err error
+	//var err error
 	switch runtime.GOOS {
 	case "darwin":
 		err = setMacOSProxy("127.0.0.1", "2080")
@@ -32,9 +38,14 @@ func Enable() error {
 }
 
 func Disable() error {
+	err := tun.Disable()
+	if err != nil {
+		return err
+	}
+	return nil
 	logger.Info("Disabling proxy settings based on OS")
 
-	var err error
+	//var err error
 	switch runtime.GOOS {
 	case "darwin":
 		err = clearMacOSProxy()

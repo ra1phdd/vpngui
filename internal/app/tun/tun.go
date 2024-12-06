@@ -2,6 +2,7 @@ package tun
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"go.uber.org/zap"
@@ -17,7 +18,7 @@ import (
 	"vpngui/pkg/logger"
 )
 
-var defaultInterface string
+var DefaultInterface, DefaultIP, DefaultGW string
 var cmd *exec.Cmd
 
 func Enable() error {
@@ -30,15 +31,22 @@ func Enable() error {
 			{"ip", "link", "set", "dev", "tun0", "up"},
 		}
 
-		err := runCommands(commands)
+		err := runCommands(commands, false)
 		if err != nil {
 			return err
 		}
 	}
 
 	var err error
-	defaultInterface, err = GetDefaultInterface()
-	err = RunTun2socks(defaultInterface)
+	DefaultInterface, DefaultIP, err = GetDefaultInterface()
+	if err != nil {
+		return err
+	}
+	DefaultGW, err = GetDefaultGateway()
+	if err != nil {
+		return err
+	}
+	err = RunTun2socks()
 	if err != nil {
 		return err
 	}
@@ -72,9 +80,14 @@ func Disable() error {
 }
 
 func setMacOSTun() error {
+	err := clearMacOSTun()
+	if err != nil {
+		return err
+	}
+
 	commands := [][]string{
 		{"sudo", "ifconfig", "utun100", "198.18.0.1", "198.18.0.1", "up"},
-		{"sudo", "route", "delete", "default"},
+		{"sudo", "route", "add", "-net", fmt.Sprintf("%s/32", DefaultIP), "-interface", DefaultInterface},
 		{"sudo", "route", "add", "-net", "1.0.0.0/8", "198.18.0.1"},
 		{"sudo", "route", "add", "-net", "2.0.0.0/7", "198.18.0.1"},
 		{"sudo", "route", "add", "-net", "4.0.0.0/6", "198.18.0.1"},
@@ -86,27 +99,37 @@ func setMacOSTun() error {
 		{"sudo", "route", "add", "-net", "198.18.0.0/15", "198.18.0.1"},
 	}
 
-	return runCommands(commands)
+	return runCommands(commands, false)
 }
 
 func clearMacOSTun() error {
 	commands := [][]string{
+		{"sudo", "ifconfig", "utun100", "198.18.0.1", "198.18.0.1", "down"},
 		{"sudo", "route", "delete", "default"},
-		{"sudo", "ifconfig", defaultInterface, "down"},
-		{"sudo", "ifconfig", defaultInterface, "up"},
+		{"sudo", "route", "delete", "1.0.0.0/8"},
+		{"sudo", "route", "delete", "2.0.0.0/7"},
+		{"sudo", "route", "delete", "4.0.0.0/6"},
+		{"sudo", "route", "delete", "8.0.0.0/5"},
+		{"sudo", "route", "delete", "16.0.0.0/4"},
+		{"sudo", "route", "delete", "32.0.0.0/3"},
+		{"sudo", "route", "delete", "64.0.0.0/2"},
+		{"sudo", "route", "delete", "128.0.0.0/1"},
+		{"sudo", "route", "delete", "198.18.0.0/15"},
+		{"sudo", "route", "delete", fmt.Sprintf("%s/32", DefaultIP)},
+		{"sudo", "route", "add", "default", DefaultGW},
 	}
 
-	return runCommands(commands)
+	return runCommands(commands, true)
 }
 
 func setLinuxTun() error {
 	commands := [][]string{
 		{"ip", "route", "del", "default"},
 		{"ip", "route", "add", "default", "via", "198.18.0.1", "dev", "tun0", "metric", "1"},
-		{"ip", "route", "add", "default", "via", "172.17.0.1", "dev", defaultInterface, "metric", "10"},
+		{"ip", "route", "add", "default", "via", "172.17.0.1", "dev", DefaultInterface, "metric", "10"},
 	}
 
-	return runCommands(commands)
+	return runCommands(commands, false)
 }
 
 func clearLinuxTun() error {
@@ -114,7 +137,7 @@ func clearLinuxTun() error {
 		{"ip", "route", "del", "default"},
 	}
 
-	return runCommands(commands)
+	return runCommands(commands, false)
 }
 
 func setWindowsTun() error {
@@ -124,7 +147,7 @@ func setWindowsTun() error {
 		{"netsh", "interface", "ipv4", "add", "0.0.0.0/0", "wintun", "192.168.123.1", "metric=1"},
 	}
 
-	return runCommands(commands)
+	return runCommands(commands, false)
 }
 
 func clearWindowsTun() error {
@@ -132,14 +155,14 @@ func clearWindowsTun() error {
 		{"netsh", "interface", "ipv4", "delete", "route", "0.0.0.0/0", "wintun"},
 	}
 
-	return runCommands(commands)
+	return runCommands(commands, false)
 }
 
-func runCommands(commands [][]string) error {
+func runCommands(commands [][]string, ignoreErr bool) error {
 	for _, args := range commands {
 		logger.Debug("Executing command", zap.String("cmd", strings.Join(args, " ")))
 		cmd := exec.Command(args[0], args[1:]...)
-		err := runCommand(cmd)
+		err := runCommand(cmd, ignoreErr)
 		if err != nil {
 			return err
 		}
@@ -148,12 +171,12 @@ func runCommands(commands [][]string) error {
 	return nil
 }
 
-func runCommand(cmd *exec.Cmd) error {
+func runCommand(cmd *exec.Cmd, ignoreErr bool) error {
 	cmd.SysProcAttr = command.GetSysProcAttr()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := cmd.Run(); err != nil && !ignoreErr {
 		logger.Error("Command execution failed", zap.String("cmd", cmd.String()), zap.Error(err))
 		return err
 	}
@@ -161,7 +184,7 @@ func runCommand(cmd *exec.Cmd) error {
 	return nil
 }
 
-func RunTun2socks(ifconf string) error {
+func RunTun2socks() error {
 	logger.Info("Starting tun2socks")
 
 	var device string
@@ -177,7 +200,7 @@ func RunTun2socks(ifconf string) error {
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command(embed.GetTempFileName("tun2socks"), "-device", device, "-proxy", "socks5://127.0.0.1:2080")
 	} else {
-		cmd = exec.Command("sudo", embed.GetTempFileName("tun2socks"), "-device", device, "-proxy", "socks5://127.0.0.1:2080", "-interface", ifconf)
+		cmd = exec.Command("sudo", embed.GetTempFileName("tun2socks"), "-device", device, "-proxy", "socks5://127.0.0.1:2080")
 	}
 	cmd.SysProcAttr = command.GetSysProcAttr()
 	cmd.Stderr = os.Stderr
@@ -260,11 +283,11 @@ func waitForExit() {
 	}
 }
 
-func GetDefaultInterface() (string, error) {
+func GetDefaultInterface() (string, string, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		fmt.Println("Error:", err)
-		return "", err
+		return "", "", err
 	}
 
 	for _, iface := range interfaces {
@@ -272,11 +295,30 @@ func GetDefaultInterface() (string, error) {
 			addrs, _ := iface.Addrs()
 			for _, addr := range addrs {
 				if ip, ok := addr.(*net.IPNet); ok && ip.IP.To4() != nil {
-					return iface.Name, err
+					return iface.Name, ip.IP.String(), nil
 				}
 			}
 		}
 	}
 
-	return "", errors.New("no default interface found")
+	return "", "", errors.New("no default interface found")
+}
+
+func GetDefaultGateway() (string, error) {
+	cmd := exec.Command("sh", "-c", "route -n get default | grep 'gateway' | awk '{print $2}'")
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	if err := cmd.Run(); err != nil {
+		logger.Error("Failed to execute command", zap.Error(err))
+		return "", err
+	}
+
+	gateway := strings.TrimSpace(out.String())
+	if gateway == "" {
+		return "", errors.New("no default gateway found")
+	}
+
+	return gateway, nil
 }

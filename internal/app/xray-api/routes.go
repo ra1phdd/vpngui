@@ -11,6 +11,7 @@ import (
 	"vpngui/internal/app/config"
 	"vpngui/internal/app/models"
 	"vpngui/internal/app/repository"
+	"vpngui/internal/app/tun"
 	"vpngui/pkg/logger"
 )
 
@@ -676,6 +677,16 @@ func (x *RoutesXrayAPI) ActualizeConfig() {
 		},
 	}
 	config.Xray.Outbounds = append(config.Xray.Outbounds, outbound)
+
+	_, DefaultIP, err := tun.GetDefaultInterface()
+	if err != nil {
+		logger.Error("Error fetching default interface", zap.Error(err))
+		return
+	}
+	for i := range config.Xray.Outbounds {
+		config.Xray.Outbounds[i].SendThrough = DefaultIP
+	}
+
 	if getConfig.ListMode == "whitelist" || getConfig.DisableRoutes == true || len(getRoutes.Rules) == 0 {
 		err = x.SwapOutbounds(&config.Xray.Outbounds, "proxy", "direct")
 		if err != nil {

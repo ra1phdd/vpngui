@@ -52,6 +52,48 @@ export class APIConfig {
     }
 }
 
+export class AllocateConfig {
+    /**
+     * Creates a new AllocateConfig instance.
+     * @param {Partial<AllocateConfig>} [$$source = {}] - The source object to create the AllocateConfig.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["strategy"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["refresh"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["concurrency"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AllocateConfig instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AllocateConfig}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AllocateConfig(/** @type {Partial<AllocateConfig>} */($$parsedSource));
+    }
+}
+
 export class Config {
     /**
      * Creates a new Config instance.
@@ -143,6 +185,20 @@ export class InboundConfig {
              */
             this["tag"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {SniffingConfig | undefined}
+             */
+            this["sniffing"] = (new SniffingConfig());
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {AllocateConfig | undefined}
+             */
+            this["allocate"] = (new AllocateConfig());
+        }
 
         Object.assign(this, $$source);
     }
@@ -155,12 +211,20 @@ export class InboundConfig {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType1;
         const $$createField4_0 = $$createType1;
+        const $$createField6_0 = $$createType2;
+        const $$createField7_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("settings" in $$parsedSource) {
             $$parsedSource["settings"] = $$createField3_0($$parsedSource["settings"]);
         }
         if ("streamSettings" in $$parsedSource) {
             $$parsedSource["streamSettings"] = $$createField4_0($$parsedSource["streamSettings"]);
+        }
+        if ("sniffing" in $$parsedSource) {
+            $$parsedSource["sniffing"] = $$createField6_0($$parsedSource["sniffing"]);
+        }
+        if ("allocate" in $$parsedSource) {
+            $$parsedSource["allocate"] = $$createField7_0($$parsedSource["allocate"]);
         }
         return new InboundConfig(/** @type {Partial<InboundConfig>} */($$parsedSource));
     }
@@ -211,7 +275,7 @@ export class ListConfig {
      * @returns {ListConfig}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType3;
+        const $$createField1_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Rules" in $$parsedSource) {
             $$parsedSource["Rules"] = $$createField1_0($$parsedSource["Rules"]);
@@ -352,8 +416,8 @@ export class PolicyConfig {
      * @returns {PolicyConfig}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType5;
-        const $$createField1_0 = $$createType6;
+        const $$createField0_0 = $$createType7;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("levels" in $$parsedSource) {
             $$parsedSource["levels"] = $$createField0_0($$parsedSource["levels"]);
@@ -528,7 +592,7 @@ export class RoutingConfig {
      * @returns {RoutingConfig}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType8;
+        const $$createField2_0 = $$createType10;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
@@ -697,6 +761,52 @@ export class Settings {
     }
 }
 
+export class SniffingConfig {
+    /**
+     * Creates a new SniffingConfig instance.
+     * @param {Partial<SniffingConfig>} [$$source = {}] - The source object to create the SniffingConfig.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["enabled"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["destOverride"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["routeOnly"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SniffingConfig instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SniffingConfig}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("destOverride" in $$parsedSource) {
+            $$parsedSource["destOverride"] = $$createField1_0($$parsedSource["destOverride"]);
+        }
+        return new SniffingConfig(/** @type {Partial<SniffingConfig>} */($$parsedSource));
+    }
+}
+
 export class Xray {
     /**
      * Creates a new Xray instance.
@@ -765,12 +875,12 @@ export class Xray {
      * @returns {Xray}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType9;
-        const $$createField1_0 = $$createType10;
-        const $$createField2_0 = $$createType12;
-        const $$createField3_0 = $$createType14;
-        const $$createField4_0 = $$createType15;
-        const $$createField5_0 = $$createType17;
+        const $$createField0_0 = $$createType11;
+        const $$createField1_0 = $$createType12;
+        const $$createField2_0 = $$createType14;
+        const $$createField3_0 = $$createType16;
+        const $$createField4_0 = $$createType17;
+        const $$createField5_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("log" in $$parsedSource) {
             $$parsedSource["log"] = $$createField0_0($$parsedSource["log"]);
@@ -797,19 +907,21 @@ export class Xray {
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = Rule.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = PolicyLevelConfig.createFrom;
-const $$createType5 = $Create.Map($Create.Any, $$createType4);
-const $$createType6 = PolicySystemConfig.createFrom;
-const $$createType7 = RoutingRule.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = LogConfig.createFrom;
-const $$createType10 = APIConfig.createFrom;
-const $$createType11 = InboundConfig.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = OutboundConfig.createFrom;
+const $$createType2 = SniffingConfig.createFrom;
+const $$createType3 = AllocateConfig.createFrom;
+const $$createType4 = Rule.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = PolicyLevelConfig.createFrom;
+const $$createType7 = $Create.Map($Create.Any, $$createType6);
+const $$createType8 = PolicySystemConfig.createFrom;
+const $$createType9 = RoutingRule.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = LogConfig.createFrom;
+const $$createType12 = APIConfig.createFrom;
+const $$createType13 = InboundConfig.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = PolicyConfig.createFrom;
-const $$createType16 = RoutingConfig.createFrom;
-const $$createType17 = $Create.Nullable($$createType16);
+const $$createType15 = OutboundConfig.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = PolicyConfig.createFrom;
+const $$createType18 = RoutingConfig.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);

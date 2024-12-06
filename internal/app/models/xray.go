@@ -58,13 +58,14 @@ type InboundConfig struct {
 	Settings       map[string]interface{} `json:"settings,omitempty"`
 	StreamSettings map[string]interface{} `json:"streamSettings,omitempty"`
 	Tag            string                 `json:"tag,omitempty"`
-	//Sniffing       SniffingConfig         `json:"sniffing,omitempty"`
-	//Allocate       AllocateConfig         `json:"allocate,omitempty"`
+	Sniffing       SniffingConfig         `json:"sniffing,omitempty"`
+	Allocate       AllocateConfig         `json:"allocate,omitempty"`
 }
 
 type SniffingConfig struct {
 	Enabled      bool     `json:"enabled,omitempty"`
 	DestOverride []string `json:"destOverride,omitempty"`
+	RouteOnly    bool     `json:"routeOnly,omitempty"`
 }
 
 type AllocateConfig struct {
