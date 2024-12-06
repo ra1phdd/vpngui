@@ -6,11 +6,13 @@ import (
 	"embed"
 )
 
-//go:embed bin/xray-core-darwin-amd64
+//go:embed xray-core/xray-core-darwin-amd64
 var fsXray embed.FS
 
 //go:embed tun2socks/tun2socks-darwin-amd64
 var fsTun2socks embed.FS
+
+var fsWintun embed.FS
 
 func getFileXray() string {
 	return "xray-core-darwin-amd64"
@@ -18,4 +20,8 @@ func getFileXray() string {
 
 func getFileTun2socks() string {
 	return "tun2socks-darwin-amd64"
+}
+
+func createFileWintun() error {
+	return nil
 }

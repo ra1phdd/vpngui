@@ -21,11 +21,15 @@ func Init() error {
 	Configs()
 	DB()
 
-	err := CreateFile(getFileXray(), "bin", fsXray)
+	err := CreateFile(getFileXray(), "xray-core", fsXray)
 	if err != nil {
 		return err
 	}
 	err = CreateFile(getFileTun2socks(), "tun2socks", fsTun2socks)
+	if err != nil {
+		return err
+	}
+	err = createFileWintun()
 	if err != nil {
 		return err
 	}

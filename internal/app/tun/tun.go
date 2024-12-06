@@ -87,7 +87,6 @@ func setMacOSTun() error {
 
 	commands := [][]string{
 		{"sudo", "ifconfig", "utun100", "198.18.0.1", "198.18.0.1", "up"},
-		{"sudo", "route", "add", "-net", fmt.Sprintf("%s/32", DefaultIP), "-interface", DefaultInterface},
 		{"sudo", "route", "add", "-net", "1.0.0.0/8", "198.18.0.1"},
 		{"sudo", "route", "add", "-net", "2.0.0.0/7", "198.18.0.1"},
 		{"sudo", "route", "add", "-net", "4.0.0.0/6", "198.18.0.1"},
@@ -115,8 +114,8 @@ func clearMacOSTun() error {
 		{"sudo", "route", "delete", "64.0.0.0/2"},
 		{"sudo", "route", "delete", "128.0.0.0/1"},
 		{"sudo", "route", "delete", "198.18.0.0/15"},
-		{"sudo", "route", "delete", fmt.Sprintf("%s/32", DefaultIP)},
 		{"sudo", "route", "add", "default", DefaultGW},
+		{"sudo", "route", "add", "-net", fmt.Sprintf("%s/32", DefaultIP), "-interface", DefaultInterface},
 	}
 
 	return runCommands(commands, true)
