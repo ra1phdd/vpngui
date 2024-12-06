@@ -35,16 +35,26 @@ func Enable() error {
 		if err != nil {
 			return err
 		}
+	} else if runtime.GOOS == "windows" {
+		commands := [][]string{
+			{"netsh", "interface", "set", "interface", "name=\"wintun\"", "admin=disabled"},
+		}
+		err := runCommands(commands, true)
+		if err != nil {
+			return err
+		}
 	}
 
 	var err error
-	DefaultInterface, DefaultIP, err = GetDefaultInterface()
-	if err != nil {
-		return err
-	}
-	DefaultGW, err = GetDefaultGateway()
-	if err != nil {
-		return err
+	if runtime.GOOS != "windows" {
+		DefaultInterface, DefaultIP, err = GetDefaultInterface()
+		if err != nil {
+			return err
+		}
+		DefaultGW, err = GetDefaultGateway()
+		if err != nil {
+			return err
+		}
 	}
 	err = RunTun2socks()
 	if err != nil {
@@ -140,10 +150,15 @@ func clearLinuxTun() error {
 }
 
 func setWindowsTun() error {
+	err := clearWindowsTun()
+	if err != nil {
+		return err
+	}
+
 	commands := [][]string{
-		{"netsh", "interface", "ipv4", "set", "address", "name='wintun'", "static", "addr=192.168.123.1", "mask=255.255.255.0"},
-		{"netsh", "interface", "ipv4", "set", "dnsservers", "name='wintun'", "static", "address=8.8.8.8", "register=none", "validate=no"},
-		{"netsh", "interface", "ipv4", "add", "0.0.0.0/0", "wintun", "192.168.123.1", "metric=1"},
+		{"netsh", "interface", "ipv4", "set", "address", "name=\"wintun\"", "source=static", "addr=192.168.123.1", "mask=255.255.255.0"},
+		{"netsh", "interface", "ipv4", "set", "dnsservers", "name=\"wintun\"", "static", "address=8.8.8.8", "register=none", "validate=no"},
+		{"netsh", "interface", "ipv4", "add", "route", "0.0.0.0/0", "\"wintun\"", "192.168.123.1", "metric=1"},
 	}
 
 	return runCommands(commands, false)
@@ -151,10 +166,10 @@ func setWindowsTun() error {
 
 func clearWindowsTun() error {
 	commands := [][]string{
-		{"netsh", "interface", "ipv4", "delete", "route", "0.0.0.0/0", "wintun"},
+		{"netsh", "interface", "ipv4", "delete", "route", "0.0.0.0/0", "\"wintun\""},
 	}
 
-	return runCommands(commands, false)
+	return runCommands(commands, true)
 }
 
 func runCommands(commands [][]string, ignoreErr bool) error {
@@ -185,6 +200,11 @@ func runCommand(cmd *exec.Cmd, ignoreErr bool) error {
 
 func RunTun2socks() error {
 	logger.Info("Starting tun2socks")
+
+	err := TerminateProcesses()
+	if err != nil {
+		return err
+	}
 
 	var device string
 	switch runtime.GOOS {
@@ -249,6 +269,25 @@ func KillTun2socks() error {
 	return nil
 }
 
+func TerminateProcesses() error {
+	var cmd *exec.Cmd
+
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("taskkill", "/FI", "IMAGENAME eq tun2socks*", "/F")
+	} else {
+		cmd = exec.Command("pkill", "-f", "tun2socks")
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Error("Failed to terminate tun2socks processes", zap.Error(err), zap.String("output", string(output)))
+		return err
+	}
+
+	logger.Info("Successfully terminated tun2socks processes")
+	return nil
+}
+
 func handleStdout(stdoutPipe io.ReadCloser) {
 	logger.Info("Handling stdout for tun2socks")
 	scanner := bufio.NewScanner(stdoutPipe)
@@ -257,7 +296,7 @@ func handleStdout(stdoutPipe io.ReadCloser) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		logger.Info("Received line from tun2socks", zap.String("line", line))
-		if strings.Contains(line, "[STACK] tun://utun100") {
+		if strings.Contains(line, "[STACK] tun://") {
 			var err error
 			switch runtime.GOOS {
 			case "darwin":

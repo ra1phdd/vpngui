@@ -4,6 +4,9 @@ package embed
 
 import (
 	"embed"
+	"fmt"
+	"os"
+	"path/filepath"
 )
 
 //go:embed xray-core/xray-core-windows-arm64.exe
@@ -30,7 +33,14 @@ func createFileWintun() error {
 		return err
 	}
 
-	err = os.WriteFile("wintun.dll", fileContent, 0644)
+	tempDir := os.TempDir()
+	tempFilePath := filepath.Join(tempDir, "wintun.dll")
+
+	if _, err := os.Stat(tempFilePath); err == nil {
+		return nil
+	}
+
+	err = os.WriteFile(tempFilePath, fileContent, 0644)
 	if err != nil {
 		fmt.Printf("Ошибка записи файла: %v\n", err)
 		return err

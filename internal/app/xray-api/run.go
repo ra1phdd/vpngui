@@ -33,6 +33,11 @@ func NewRun(cr *repository.ConfigRepository) *RunXrayAPI {
 func (x *RunXrayAPI) Run() error {
 	logger.Info("Starting xray-api")
 
+	err := TerminateProcesses()
+	if err != nil {
+		return err
+	}
+
 	cmd = exec.Command(embed.GetTempFileName("xray-core"), "run", "-c", "config/xray.json")
 	cmd.SysProcAttr = command.GetSysProcAttr()
 	cmd.Stderr = os.Stderr
@@ -158,7 +163,7 @@ func (x *RunXrayAPI) handleStdout(stdoutPipe io.ReadCloser) {
 				logger.Error("Failed to update VPN state", zap.Error(err))
 				return
 			}
-		} else if strings.Contains(line, "address already in use") {
+		} else if strings.Contains(line, "address already in use") || strings.Contains(line, "failed to listen address") {
 			err := TerminateProcesses()
 			if err != nil {
 				logger.Error("Failed to terminate xray-core processes", zap.Error(err))
