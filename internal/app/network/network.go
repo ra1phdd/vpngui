@@ -1,4 +1,4 @@
-package tun
+package network
 
 import (
 	"bytes"
@@ -12,9 +12,40 @@ import (
 	"vpngui/pkg/logger"
 )
 
-var DefaultInterface, DefaultIP, DefaultGateway string
+var (
+	DefaultIP        string
+	DefaultGateway   string
+	DefaultInterface string
+)
 
-func GetDefaultInterface() (string, error) {
+type Network struct{}
+
+func New() *Network {
+	return &Network{}
+}
+
+func (n *Network) Init() error {
+	var err error
+	DefaultInterface, err = n.GetDefaultInterface()
+	if err != nil {
+		logger.Error("Failed get default interface", zap.Error(err))
+		return err
+	}
+	DefaultGateway, err = n.GetDefaultGateway()
+	if err != nil {
+		logger.Error("Failed get default gateway", zap.Error(err))
+		return err
+	}
+	DefaultIP, err = n.GetDefaultIP(DefaultInterface)
+	if err != nil {
+		logger.Error("Failed get default ip", zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func (n *Network) GetDefaultInterface() (string, error) {
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
@@ -46,7 +77,7 @@ func GetDefaultInterface() (string, error) {
 	return "", errors.New("no default interface found")
 }
 
-func GetDefaultIP(interfaceName string) (string, error) {
+func (n *Network) GetDefaultIP(interfaceName string) (string, error) {
 	iface, err := net.InterfaceByName(interfaceName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get interface %s: %w", interfaceName, err)
@@ -74,7 +105,7 @@ func GetDefaultIP(interfaceName string) (string, error) {
 	return "", fmt.Errorf("no suitable IP address found for interface %s", interfaceName)
 }
 
-func GetDefaultGateway() (string, error) {
+func (n *Network) GetDefaultGateway() (string, error) {
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {

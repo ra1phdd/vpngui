@@ -8,9 +8,14 @@ import (
 	"time"
 	"vpngui/internal/app/config"
 	"vpngui/internal/app/log"
+	"vpngui/internal/app/network"
 	"vpngui/internal/app/repository"
+	"vpngui/internal/app/runner"
 	"vpngui/internal/app/stats"
-	xrayapi "vpngui/internal/app/xray-core"
+	"vpngui/internal/app/transport"
+	"vpngui/internal/app/transport/proxy"
+	"vpngui/internal/app/transport/tun"
+	"vpngui/internal/app/xray-core"
 	"vpngui/pkg/db"
 	embedded "vpngui/pkg/embed"
 	"vpngui/pkg/logger"
@@ -25,7 +30,7 @@ func NewApp() *App {
 }
 
 func (a *App) shutdown() {
-	err := runXrayApi.Kill(false)
+	err := runXrayCore.Kill(false)
 	if err != nil {
 		logger.Error("Failed to kill Xray API", zap.Error(err))
 		return
@@ -45,14 +50,20 @@ func (a *App) IsGOOSWindows() bool {
 }
 
 var (
-	settingsRepo  *repository.SettingsRepository
-	configRepo    *repository.ConfigRepository
-	routesRepo    *repository.RoutesRepository
-	runXrayApi    *xrayapi.RunXrayCore
-	routesXrayApi *xrayapi.RoutesXrayAPI
-	traffic       *stats.Traffic
-	capLog        *log.Log
-	cfg           *config.Config
+	nw             *network.Network
+	settingsRepo   *repository.SettingsRepository
+	configRepo     *repository.ConfigRepository
+	routesRepo     *repository.RoutesRepository
+	runnerCmd      *runner.Command
+	runnerProcess  *runner.Process
+	transportProxy *proxy.Proxy
+	transportTun   *tun.Tun
+	transports     *transport.Transport
+	runXrayCore    *xray_core.RunXrayCore
+	routesXrayCore *xray_core.RoutesXrayCore
+	traffic        *stats.Traffic
+	capLog         *log.Log
+	cfg            *config.Config
 )
 
 func New(assets embed.FS) error {
@@ -80,18 +91,32 @@ func New(assets embed.FS) error {
 }
 
 func setupApplication() *App {
+	nw = network.New()
+	err := nw.Init()
+	if err != nil {
+		logger.Fatal("Failed to init network", zap.Error(err))
+	}
+
 	settingsRepo = repository.NewSettings()
 	configRepo = repository.NewConfig()
 	routesRepo = repository.NewRoutes()
-	runXrayApi = xrayapi.NewRun(configRepo)
-	routesXrayApi = xrayapi.NewRoutes(runXrayApi, routesRepo)
-	traffic = stats.NewTraffic(configRepo)
-	capLog = log.New()
 
+	runnerCmd = runner.NewCmd()
+	runnerProcess = runner.NewProcess()
+
+	transportProxy = proxy.New(runnerCmd)
+	transportTun = tun.New(runnerCmd, runnerProcess)
+	transports = transport.New(configRepo, transportProxy, transportTun)
+
+	traffic = stats.NewTraffic(configRepo, transports)
+	capLog = log.New()
 	go capLog.CaptureStdout()
 
+	runXrayCore = xray_core.NewRun(configRepo, runnerProcess, transports)
+	routesXrayCore = xray_core.NewRoutes(runXrayCore, routesRepo)
+
 	cfg = config.New()
-	routesXrayApi.ActualizeConfig()
+	routesXrayCore.ActualizeConfig()
 
 	app := NewApp()
 	return app
@@ -115,8 +140,8 @@ func runWailsApp(assets embed.FS, app *App) error {
 			wails.NewService(settingsRepo),
 			wails.NewService(configRepo),
 			wails.NewService(routesRepo),
-			wails.NewService(runXrayApi),
-			wails.NewService(routesXrayApi),
+			wails.NewService(runXrayCore),
+			wails.NewService(routesXrayCore),
 			wails.NewService(traffic),
 			wails.NewService(capLog),
 		},
@@ -192,7 +217,7 @@ func systemTray(app *App) {
 		}
 
 		if c.ActiveVPN == false {
-			err = runXrayApi.Run()
+			err = runXrayCore.Run()
 			if err != nil {
 				logger.Error("Failed to run xray-core", zap.Error(err))
 				return
@@ -207,7 +232,7 @@ func systemTray(app *App) {
 		}
 
 		if c.ActiveVPN == true {
-			err = runXrayApi.Run()
+			err = runXrayCore.Run()
 			if err != nil {
 				logger.Error("Failed to run xray-core", zap.Error(err))
 				return
@@ -222,13 +247,13 @@ func systemTray(app *App) {
 		}
 
 		if c.ActiveVPN == true {
-			err = runXrayApi.Kill(true)
+			err = runXrayCore.Kill(true)
 			if err != nil {
 				logger.Error("Failed to kill xray-core", zap.Error(err))
 				return
 			}
 		}
-		err = runXrayApi.Run()
+		err = runXrayCore.Run()
 		if err != nil {
 			logger.Error("Failed to run xray-core", zap.Error(err))
 			return
@@ -245,7 +270,7 @@ func systemTray(app *App) {
 		}
 
 		if c.DisableRoutes == true {
-			err = routesXrayApi.EnableRoutes()
+			err = routesXrayCore.EnableRoutes()
 			if err != nil {
 				logger.Error("Failed to enable routes", zap.Error(err))
 				return
@@ -260,7 +285,7 @@ func systemTray(app *App) {
 		}
 
 		if c.DisableRoutes == false {
-			err = routesXrayApi.DisableRoutes()
+			err = routesXrayCore.DisableRoutes()
 			if err != nil {
 				logger.Error("Failed to enable routes", zap.Error(err))
 				return

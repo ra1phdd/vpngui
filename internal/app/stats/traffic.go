@@ -7,32 +7,34 @@ import (
 	"io"
 	"os/exec"
 	"strings"
-	"vpngui/internal/app/command"
 	"vpngui/internal/app/models"
-	"vpngui/internal/app/proxy"
 	"vpngui/internal/app/repository"
+	"vpngui/internal/app/runner"
+	"vpngui/internal/app/transport"
 	"vpngui/pkg/embed"
 	"vpngui/pkg/logger"
 )
-
-type Traffic struct {
-	cr *repository.ConfigRepository
-}
-
-func NewTraffic(cr *repository.ConfigRepository) *Traffic {
-	return &Traffic{
-		cr: cr,
-	}
-}
 
 var (
 	OldTraffic     models.StatsTraffic
 	CurrentTraffic models.StatsTraffic
 )
 
+type Traffic struct {
+	cr *repository.ConfigRepository
+	ts *transport.Transport
+}
+
+func NewTraffic(cr *repository.ConfigRepository, ts *transport.Transport) *Traffic {
+	return &Traffic{
+		cr: cr,
+		ts: ts,
+	}
+}
+
 func (t *Traffic) CaptureTraffic() {
 	cmd := exec.Command(embed.GetTempFileName("xray-core"), "api", "statsquery")
-	cmd.SysProcAttr = command.GetSysProcAttr()
+	cmd.SysProcAttr = runner.GetSysProcAttr()
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -98,7 +100,13 @@ func (t *Traffic) GetTraffic(typeTraffic, typeChannel string) int64 {
 func (t *Traffic) ScannerStdout(stdoutPipe io.ReadCloser) string {
 	var jsonOutput string
 	scanner := bufio.NewScanner(stdoutPipe)
-	defer stdoutPipe.Close()
+	defer func(stdoutPipe io.ReadCloser) {
+		err := stdoutPipe.Close()
+		if err != nil {
+			logger.Error("Failed to close stdout pipe", zap.Error(err))
+			return
+		}
+	}(stdoutPipe)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -107,7 +115,7 @@ func (t *Traffic) ScannerStdout(stdoutPipe io.ReadCloser) string {
 			if err != nil {
 				logger.Error("Failed to create xray file", zap.Error(err))
 
-				if err := proxy.Disable(); err != nil {
+				if err := t.ts.Disable(); err != nil {
 					logger.Error("Failed to update VPN state", zap.Error(err))
 				}
 

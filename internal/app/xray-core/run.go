@@ -4,9 +4,9 @@ import (
 	"go.uber.org/zap"
 	"os/exec"
 	"strings"
-	"vpngui/internal/app/command"
-	"vpngui/internal/app/proxy"
 	"vpngui/internal/app/repository"
+	"vpngui/internal/app/runner"
+	"vpngui/internal/app/transport"
 	"vpngui/pkg/embed"
 	"vpngui/pkg/logger"
 )
@@ -15,24 +15,28 @@ var cmd *exec.Cmd
 
 type RunXrayCore struct {
 	cr *repository.ConfigRepository
+	rp *runner.Process
+	ts *transport.Transport
 }
 
-func NewRun(cr *repository.ConfigRepository) *RunXrayCore {
+func NewRun(cr *repository.ConfigRepository, rp *runner.Process, ts *transport.Transport) *RunXrayCore {
 	return &RunXrayCore{
 		cr: cr,
+		rp: rp,
+		ts: ts,
 	}
 }
 
-func (x *RunXrayCore) Run() error {
+func (rx *RunXrayCore) Run() error {
 	logger.Info("Starting xray-core")
 
-	err := command.TerminateProcesses("xray-core")
+	err := rx.rp.Terminate("xray-core")
 	if err != nil {
 		return err
 	}
 
 	cmd = exec.Command(embed.GetTempFileName("xray-core"), "run", "-c", "config/xray.json")
-	err = command.RunProcess("tun2socks", cmd, x.handlerStdout, x.waitForExit)
+	err = rx.rp.Run("tun2socks", cmd, rx.handlerStdout, rx.waitForExit)
 	if err != nil {
 		return err
 	}
@@ -41,27 +45,28 @@ func (x *RunXrayCore) Run() error {
 	return nil
 }
 
-func (x *RunXrayCore) handlerStdout(line string) {
+func (rx *RunXrayCore) handlerStdout(line string) {
 	if strings.Contains(line, "started") {
-		if err := proxy.Enable(); err != nil {
+		if err := rx.ts.Enable(); err != nil {
 			logger.Error("Failed to update VPN state", zap.Error(err))
 			return
 		}
 
-		if err := x.cr.UpdateActiveVPN(true); err != nil {
+		if err := rx.cr.UpdateActiveVPN(true); err != nil {
 			logger.Error("Failed to update VPN state", zap.Error(err))
 			return
 		}
 	} else if strings.Contains(line, "address already in use") || strings.Contains(line, "failed to listen address") {
-		err := command.TerminateProcesses("xray-core")
+		err := rx.rp.Terminate("xray-core")
 		if err != nil {
 			logger.Error("Failed to terminate xray-core processes", zap.Error(err))
 
-			if err := proxy.Disable(); err != nil {
+			if err := rx.ts.Disable(); err != nil {
 				logger.Error("Failed to update VPN state", zap.Error(err))
+				return
 			}
 
-			if err := x.cr.UpdateActiveVPN(false); err != nil {
+			if err := rx.cr.UpdateActiveVPN(false); err != nil {
 				logger.Error("Failed to update VPN state", zap.Error(err))
 				return
 			}
@@ -69,34 +74,35 @@ func (x *RunXrayCore) handlerStdout(line string) {
 	}
 }
 
-func (x *RunXrayCore) waitForExit() {
+func (rx *RunXrayCore) waitForExit() {
 	if err := cmd.Wait(); err != nil && !strings.Contains(err.Error(), "exit status 255") {
 		logger.Error("xray API exited with an error", zap.Error(err))
 
-		if err := proxy.Disable(); err != nil {
+		if err := rx.ts.Disable(); err != nil {
 			logger.Error("Failed to update VPN state", zap.Error(err))
+			return
 		}
 
-		if err := x.cr.UpdateActiveVPN(false); err != nil {
+		if err := rx.cr.UpdateActiveVPN(false); err != nil {
 			logger.Error("Failed to update VPN state", zap.Error(err))
 			return
 		}
 	}
 }
 
-func (x *RunXrayCore) Kill(updateActiveVPN bool) error {
+func (rx *RunXrayCore) Kill(updateActiveVPN bool) error {
 	logger.Info("Stopping xray-core")
 
 	if updateActiveVPN {
-		if err := x.cr.UpdateActiveVPN(false); err != nil {
+		if err := rx.cr.UpdateActiveVPN(false); err != nil {
 			logger.Error("Failed to update active VPN state", zap.Error(err))
 		}
 	}
-	if err := proxy.Disable(); err != nil {
+	if err := rx.ts.Disable(); err != nil {
 		logger.Error("Failed to update VPN state", zap.Error(err))
 	}
 
-	err := command.KillProcess("xray-core", cmd)
+	err := rx.rp.Kill("xray-core", cmd)
 	if err != nil {
 		logger.Error("Failed to kill xray-core", zap.Error(err))
 		return err

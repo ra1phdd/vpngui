@@ -5,14 +5,26 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"vpngui/internal/app/command"
+	"vpngui/internal/app/runner"
 	"vpngui/pkg/embed"
 	"vpngui/pkg/logger"
 )
 
 var cmd *exec.Cmd
 
-func Enable() error {
+type Tun struct {
+	rc *runner.Command
+	rp *runner.Process
+}
+
+func New(rc *runner.Command, rp *runner.Process) *Tun {
+	return &Tun{
+		rc: rc,
+		rp: rp,
+	}
+}
+
+func (t *Tun) Enable() error {
 	logger.Info("Enabling TUN settings based on OS")
 
 	if runtime.GOOS == "linux" {
@@ -22,7 +34,7 @@ func Enable() error {
 			{"ip", "link", "set", "dev", "tun0", "up"},
 		}
 
-		err := command.RunCommands(commands, false)
+		err := t.rc.RunCommands(commands, false)
 		if err != nil {
 			return err
 		}
@@ -30,27 +42,13 @@ func Enable() error {
 		commands := [][]string{
 			{"netsh", "interface", "set", "interface", "name=\"wintun\"", "admin=disabled"},
 		}
-		err := command.RunCommands(commands, true)
+		err := t.rc.RunCommands(commands, true)
 		if err != nil {
 			return err
 		}
 	}
 
-	var err error
-	DefaultInterface, err = GetDefaultInterface()
-	if err != nil {
-		return err
-	}
-	DefaultIP, err = GetDefaultIP(DefaultInterface)
-	if err != nil {
-		return err
-	}
-	DefaultGateway, err = GetDefaultGateway()
-	if err != nil {
-		return err
-	}
-
-	err = RunTun2socks()
+	err := t.RunTun2socks()
 	if err != nil {
 		return err
 	}
@@ -58,21 +56,21 @@ func Enable() error {
 	return nil
 }
 
-func Disable() error {
+func (t *Tun) Disable() error {
 	logger.Info("Disabling TUN settings based on OS")
 
-	err := KillTun2socks()
+	err := t.KillTun2socks()
 	if err != nil {
 		return err
 	}
 
 	switch runtime.GOOS {
 	case "darwin":
-		err = clearMacOSTun()
+		err = t.clearMacOSTun()
 	case "linux":
-		err = clearLinuxTun()
+		err = t.clearLinuxTun()
 	case "windows":
-		err = clearWindowsTun()
+		err = t.clearWindowsTun()
 	}
 	if err != nil {
 		logger.Error("Failed to disable TUN settings", zap.String("os", runtime.GOOS), zap.Error(err))
@@ -83,10 +81,10 @@ func Disable() error {
 	return nil
 }
 
-func RunTun2socks() error {
+func (t *Tun) RunTun2socks() error {
 	logger.Info("Starting tun2socks")
 
-	err := command.TerminateProcesses("tun2socks")
+	err := t.rp.Terminate("tun2socks")
 	if err != nil {
 		return err
 	}
@@ -106,7 +104,7 @@ func RunTun2socks() error {
 	} else {
 		cmd = exec.Command(embed.GetTempFileName("tun2socks"), "-device", device, "-proxy", "socks5://127.0.0.1:2080")
 	}
-	err = command.RunProcess("tun2socks", cmd, handlerStdout, waitForExit)
+	err = t.rp.Run("tun2socks", cmd, t.handlerStdout, t.waitForExit)
 	if err != nil {
 		return err
 	}
@@ -115,16 +113,16 @@ func RunTun2socks() error {
 	return nil
 }
 
-func handlerStdout(line string) {
+func (t *Tun) handlerStdout(line string) {
 	if strings.Contains(line, "[STACK] tun://") {
 		var err error
 		switch runtime.GOOS {
 		case "darwin":
-			err = setMacOSTun()
+			err = t.setMacOSTun()
 		case "linux":
-			err = setLinuxTun()
+			err = t.setLinuxTun()
 		case "windows":
-			err = setWindowsTun()
+			err = t.setWindowsTun()
 		}
 		if err != nil {
 			logger.Error("Failed to enable TUN settings", zap.String("os", runtime.GOOS), zap.Error(err))
@@ -134,16 +132,16 @@ func handlerStdout(line string) {
 	}
 }
 
-func waitForExit() {
+func (t *Tun) waitForExit() {
 	if err := cmd.Wait(); err != nil {
 		logger.Error("tun2socks exited with an error", zap.Error(err))
 	}
 }
 
-func KillTun2socks() error {
+func (t *Tun) KillTun2socks() error {
 	logger.Info("Stopping tun2socks")
 
-	err := command.KillProcess("tun2socks", cmd)
+	err := t.rp.Kill("tun2socks", cmd)
 	if err != nil {
 		return err
 	}

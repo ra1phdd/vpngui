@@ -1,4 +1,4 @@
-package command
+package runner
 
 import (
 	"bufio"
@@ -8,12 +8,17 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 	"syscall"
 	"vpngui/pkg/logger"
 )
 
-func RunProcess(name string, cmd *exec.Cmd, handler func(line string), waitForExit func()) error {
+type Process struct{}
+
+func NewProcess() *Process {
+	return &Process{}
+}
+
+func (p *Process) Run(name string, cmd *exec.Cmd, handler func(line string), waitForExit func()) error {
 	logger.Info("Starting process", zap.String("name", name))
 
 	cmd.SysProcAttr = GetSysProcAttr()
@@ -30,18 +35,24 @@ func RunProcess(name string, cmd *exec.Cmd, handler func(line string), waitForEx
 		return err
 	}
 
-	go handleStdout(name, stdoutPipe, handler)
+	go p.handleStdout(name, stdoutPipe, handler)
 	go waitForExit()
 
 	logger.Debug("tun2socks started successfully")
 	return nil
 }
 
-func handleStdout(name string, stdoutPipe io.ReadCloser, handler func(line string)) {
+func (p *Process) handleStdout(name string, stdoutPipe io.ReadCloser, handler func(line string)) {
 	logger.Info(fmt.Sprintf("Handling stdout for %s", name))
 
 	scanner := bufio.NewScanner(stdoutPipe)
-	defer stdoutPipe.Close()
+	defer func(stdoutPipe io.ReadCloser) {
+		err := stdoutPipe.Close()
+		if err != nil {
+			logger.Error("Failed to close stdout pipe", zap.Error(err))
+			return
+		}
+	}(stdoutPipe)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -50,7 +61,7 @@ func handleStdout(name string, stdoutPipe io.ReadCloser, handler func(line strin
 	}
 }
 
-func KillProcess(name string, cmd *exec.Cmd) error {
+func (p *Process) Kill(name string, cmd *exec.Cmd) error {
 	logger.Info("Stopping process", zap.String("name", name))
 
 	if cmd != nil && cmd.Process != nil {
@@ -72,7 +83,7 @@ func KillProcess(name string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func TerminateProcesses(name string) error {
+func (p *Process) Terminate(name string) error {
 	logger.Info("Terminate processes", zap.String("name", name))
 
 	var cmd *exec.Cmd
@@ -89,31 +100,5 @@ func TerminateProcesses(name string) error {
 	}
 
 	logger.Info("Successfully terminated processes")
-	return nil
-}
-
-func RunCommands(commands [][]string, ignoreErr bool) error {
-	for _, args := range commands {
-		logger.Debug("Executing command", zap.String("cmd", strings.Join(args, " ")))
-		cmd := exec.Command(args[0], args[1:]...)
-		err := RunCommand(cmd, ignoreErr)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func RunCommand(cmd *exec.Cmd, ignoreErr bool) error {
-	cmd.SysProcAttr = GetSysProcAttr()
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil && !ignoreErr {
-		logger.Error("Command execution failed", zap.String("cmd", cmd.String()), zap.Error(err))
-		return err
-	}
-
 	return nil
 }

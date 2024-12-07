@@ -1,7 +1,7 @@
 //go:build windows
 // +build windows
 
-package command
+package runner
 
 import "syscall"
 

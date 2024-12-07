@@ -15,7 +15,7 @@ func New() *Log {
 	return &Log{}
 }
 
-func (a *Log) CaptureStdout() {
+func (l *Log) CaptureStdout() {
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		logger.Warn("Error creating pipe for capturing program logs (WARNING! The 'Log' tab won't work without this)")
@@ -45,7 +45,7 @@ func (a *Log) CaptureStdout() {
 	}()
 }
 
-func (a *Log) GetLogs() string {
+func (l *Log) GetLogs() string {
 	logger.MuLog.Lock()
 	defer logger.MuLog.Unlock()
 	return strings.Join(logger.OutLog, "\n")

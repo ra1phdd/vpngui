@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"errors"
 	"go.uber.org/zap"
 	"vpngui/internal/app/models"
@@ -14,7 +15,7 @@ func NewRoutes() *RoutesRepository {
 	return &RoutesRepository{}
 }
 
-func (r *RoutesRepository) GetRoutes(listType string) (models.ListConfig, error) {
+func (rr *RoutesRepository) GetRoutes(listType string) (models.ListConfig, error) {
 	logger.Debug("Fetching routes", zap.String("listType", listType))
 	var listConfig models.ListConfig
 
@@ -34,7 +35,13 @@ func (r *RoutesRepository) GetRoutes(listType string) (models.ListConfig, error)
 		logger.Error("Failed to fetch rules for list", zap.String("listType", listType), zap.Error(err))
 		return models.ListConfig{}, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			logger.Error("Failed to close rows channel", zap.String("listType", listType), zap.Error(err))
+			return
+		}
+	}(rows)
 
 	for rows.Next() {
 		var rule models.Rule
@@ -49,7 +56,7 @@ func (r *RoutesRepository) GetRoutes(listType string) (models.ListConfig, error)
 	return listConfig, nil
 }
 
-func (r *RoutesRepository) AddRule(listType, ruleType, ruleValue string) error {
+func (rr *RoutesRepository) AddRule(listType, ruleType, ruleValue string) error {
 	logger.Debug("Adding rule", zap.String("listType", listType), zap.String("ruleType", ruleType), zap.String("ruleValue", ruleValue))
 
 	if listType != "blacklist" && listType != "whitelist" {
@@ -75,7 +82,7 @@ func (r *RoutesRepository) AddRule(listType, ruleType, ruleValue string) error {
 	return nil
 }
 
-func (r *RoutesRepository) DeleteRule(listType, ruleType, ruleValue string) error {
+func (rr *RoutesRepository) DeleteRule(listType, ruleType, ruleValue string) error {
 	logger.Debug("Deleting rule", zap.String("listType", listType), zap.String("ruleType", ruleType), zap.String("ruleValue", ruleValue))
 
 	if listType != "blacklist" && listType != "whitelist" {

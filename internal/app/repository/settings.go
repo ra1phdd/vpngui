@@ -13,7 +13,7 @@ func NewSettings() *SettingsRepository {
 	return &SettingsRepository{}
 }
 
-func (r *SettingsRepository) GetSettings() (models.Settings, error) {
+func (sr *SettingsRepository) GetSettings() (models.Settings, error) {
 	logger.Debug("Fetching settings")
 	var s models.Settings
 

@@ -2,11 +2,11 @@ package tun
 
 import (
 	"fmt"
-	"vpngui/internal/app/command"
+	"vpngui/internal/app/network"
 )
 
-func setMacOSTun() error {
-	err := clearMacOSTun()
+func (t *Tun) setMacOSTun() error {
+	err := t.clearMacOSTun()
 	if err != nil {
 		return err
 	}
@@ -24,10 +24,10 @@ func setMacOSTun() error {
 		{"sudo", "route", "add", "-net", "198.18.0.0/15", "198.18.0.1"},
 	}
 
-	return command.RunCommands(commands, false)
+	return t.rc.RunCommands(commands, false)
 }
 
-func clearMacOSTun() error {
+func (t *Tun) clearMacOSTun() error {
 	commands := [][]string{
 		{"sudo", "ifconfig", "utun100", "198.18.0.1", "198.18.0.1", "down"},
 		{"sudo", "route", "delete", "default"},
@@ -40,33 +40,37 @@ func clearMacOSTun() error {
 		{"sudo", "route", "delete", "64.0.0.0/2"},
 		{"sudo", "route", "delete", "128.0.0.0/1"},
 		{"sudo", "route", "delete", "198.18.0.0/15"},
-		{"sudo", "route", "add", "default", DefaultGateway},
-		{"sudo", "route", "add", "-net", fmt.Sprintf("%s/32", DefaultIP), "-interface", DefaultInterface},
+		{"sudo", "route", "add", "default", network.DefaultGateway},
+		{"sudo", "route", "add", "-net", fmt.Sprintf("%s/32", network.DefaultIP), "-interface", network.DefaultInterface},
 	}
 
-	return command.RunCommands(commands, true)
+	return t.rc.RunCommands(commands, true)
 }
 
-func setLinuxTun() error {
+func (t *Tun) setLinuxTun() error {
+	err := t.clearLinuxTun()
+	if err != nil {
+		return err
+	}
+
 	commands := [][]string{
-		{"ip", "route", "del", "default"},
 		{"ip", "route", "add", "default", "via", "198.18.0.1", "dev", "tun0", "metric", "1"},
-		{"ip", "route", "add", "default", "via", "172.17.0.1", "dev", DefaultInterface, "metric", "10"},
+		{"ip", "route", "add", "default", "via", "172.17.0.1", "dev", network.DefaultInterface, "metric", "10"},
 	}
 
-	return command.RunCommands(commands, false)
+	return t.rc.RunCommands(commands, false)
 }
 
-func clearLinuxTun() error {
+func (t *Tun) clearLinuxTun() error {
 	commands := [][]string{
 		{"ip", "route", "del", "default"},
 	}
 
-	return command.RunCommands(commands, false)
+	return t.rc.RunCommands(commands, false)
 }
 
-func setWindowsTun() error {
-	err := clearWindowsTun()
+func (t *Tun) setWindowsTun() error {
+	err := t.clearWindowsTun()
 	if err != nil {
 		return err
 	}
@@ -77,13 +81,13 @@ func setWindowsTun() error {
 		{"netsh", "interface", "ipv4", "add", "route", "0.0.0.0/0", "\"wintun\"", "192.168.123.1", "metric=1"},
 	}
 
-	return command.RunCommands(commands, false)
+	return t.rc.RunCommands(commands, false)
 }
 
-func clearWindowsTun() error {
+func (t *Tun) clearWindowsTun() error {
 	commands := [][]string{
 		{"netsh", "interface", "ipv4", "delete", "route", "0.0.0.0/0", "\"wintun\""},
 	}
 
-	return command.RunCommands(commands, true)
+	return t.rc.RunCommands(commands, true)
 }
