@@ -8,11 +8,9 @@
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
-
 .toggle-switch.on {
-    background-color: #32cd32; /* Green when active */
+    background-color: #32cd32;
 }
-
 .toggle-knob {
     width: 40px;
     height: 40px;
@@ -24,24 +22,19 @@
     transition: transform 0.3s ease;
     transform: translateX(0);
 }
-
 .toggle-switch.on .toggle-knob {
     transform: translateX(60px);
 }
-
 .toggle-status.on {
     color: #32cd32;
 }
-
 .icon {
     font-size: 20px;
     color: #555;
 }
-
 .toggle-switch.on .icon {
     color: #32cd32;
 }
-
 .toggle-country, .toggle-ip {
     text-align: center;
 }

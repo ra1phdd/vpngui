@@ -1,20 +1,11 @@
 @import "variables";
 
-@font-face {
-  font-family: "Comfortaa", sans-serif;
-  src: url("/src/assets/fonts/Comfortaa-Regular.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-}
-
 * {
-  user-select: none; /* Запрещает выделение текста */
+  user-select: none;
 }
-
 body{
   background-color: $primary-color;
 }
-
 .container {
   display: flex;
 }

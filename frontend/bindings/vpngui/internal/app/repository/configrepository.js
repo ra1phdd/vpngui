@@ -49,5 +49,14 @@ export function UpdateListMode(listMode) {
     return $resultPromise;
 }
 
+/**
+ * @param {string} vpnMode
+ * @returns {Promise<void> & { cancel(): void }}
+ */
+export function UpdateVPNMode(vpnMode) {
+    let $resultPromise = /** @type {any} */($Call.ByID(3954072455, vpnMode));
+    return $resultPromise;
+}
+
 // Private type creation functions
 const $$createType0 = models$0.Config.createFrom;

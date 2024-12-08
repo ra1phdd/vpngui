@@ -36,24 +36,16 @@ function PageMain() {
     };
 
     const toggleOn = async () => {
-        try {
-            const result = await Run();
-            if (result !== null) throw new Error(result);
-        } catch (error) {
-            if (error.error !== undefined) {
-                toast.error(`Ошибка: ${error.error}`);
-            }
+        const error = await Run();
+        if (error !== null && error !== undefined) {
+            toast.error(`Ошибка: ${error}`);
         }
     };
 
     const toggleOff = async () => {
-        try {
-            const result = await Kill(true);
-            if (result !== null) throw new Error(result);
-        } catch (error) {
-            if (error.error !== undefined) {
-                toast.error(`Ошибка: ${error.error}`);
-            }
+        const error = await Kill(true);
+        if (error !== null && error !== undefined) {
+            toast.error(`Ошибка: ${error}`);
         }
     };
 
@@ -79,7 +71,7 @@ function PageMain() {
             }
         };
 
-        checkVPNStatus();
+        void checkVPNStatus();
     }, []);
 
     useEffect(() => {
@@ -96,15 +88,9 @@ function PageMain() {
     }, []);
 
     const handleCheckboxChange = async () => {
-        try {
-            const result = isChecked
-                ? await EnableRoutes()
-                : await DisableRoutes();
-            if (result !== null) throw new Error(result);
-        } catch (error) {
-            if (error.error !== undefined) {
-                toast.error(`Ошибка: ${error.error}`);
-            }
+        const error = isChecked ? await EnableRoutes() : await DisableRoutes();
+        if (error !== null && error !== undefined) {
+            toast.error(`Ошибка: ${error}`);
         }
         setIsChecked((prev) => !prev);
     };

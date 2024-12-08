@@ -6,7 +6,7 @@ import {
     DisableBlackList, EnableBlackList,
     GetDomain, GetPort, GetIP,
 } from "../../../bindings/vpngui/internal/app/xray-core/routesxrayapi.js";
-import {RoutesXrayAPI} from "../../../bindings/vpngui/internal/app/xray-core/index.js";
+import {RoutesXrayCore} from "../../../bindings/vpngui/internal/app/xray-core/index.js";
 
 function PageRoutes() {
     const [isChecked, setIsChecked] = useState(false);
@@ -43,8 +43,8 @@ function PageRoutes() {
     };
 
     useEffect(() => {
-        fetchList('blacklist');
-        fetchList('whitelist');
+        void fetchList('blacklist');
+        void fetchList('whitelist');
     }, []);
 
     const handleCheckboxChange = async () => {
@@ -62,9 +62,9 @@ function PageRoutes() {
 
     const handleUpdateList = async (action, listType, itemType) => {
         const inputKey = `${listType}${itemType}`;
-        await RoutesXrayAPI[`${action}${itemType}`](listType, inputs[inputKey]);
+        await RoutesXrayCore[`${action}${itemType}`](listType, inputs[inputKey]);
         setInputs((prev) => ({ ...prev, [inputKey]: '' }));
-        fetchList(listType);
+        await fetchList(listType);
     };
 
     return (

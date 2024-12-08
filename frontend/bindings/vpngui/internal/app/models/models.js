@@ -122,6 +122,14 @@ export class Config {
              */
             this["ListMode"] = "";
         }
+        if (!("VpnMode" in $$source)) {
+            /**
+             * Принимает значения "tun" или "proxy"
+             * @member
+             * @type {string}
+             */
+            this["VpnMode"] = "";
+        }
 
         Object.assign(this, $$source);
     }
